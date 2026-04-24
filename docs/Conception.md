@@ -250,32 +250,32 @@ Il met en évidence :
 - le pattern Observer.
 
 <p align="center">
-  <img src="docs/img/DiagClass.png" alt="Diagramme de classes complet"><br>
+  <img src="img/DiagClass.png" alt="Diagramme de classes complet"><br>
   <em>Figure 1 — Diagramme de classes complet</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/UIClass.png" alt="Package UI"><br>
+  <img src="img/UIClass.png" alt="Package UI"><br>
   <em>Figure 2 — Package UI</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/FactoryClass.png" alt="Package Factory Method"><br>
+  <img src="img/FactoryClass.png" alt="Package Factory Method"><br>
   <em>Figure 3 — Package Factory Method</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/ServiceClass.png" alt="Package Application Services"><br>
+  <img src="img/ServiceClass.png" alt="Package Application Services"><br>
   <em>Figure 4 — Package Application Services</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/Subscriber.png" alt="Interface Subscriber"><br>
+  <img src="img/Subscriber.png" alt="Interface Subscriber"><br>
   <em>Figure 5 — Interface Subscriber</em>
 </p>
 
 <p align="center">
-  <img src="docs/img/DomainClass.png" alt="Package Domain"><br>
+  <img src="img/DomainClass.png" alt="Package Domain"><br>
   <em>Figure 6 — Package Domain</em>
 </p>
 
@@ -300,7 +300,7 @@ Les services applicatifs regroupent les opérations globales (exécution, export
 Le diagramme de cas d'utilisation décrit les interactions principales entre l'utilisateur et le système.
 
 <p align="center">
-  <img src="docs/img/UseCase.png" alt="Diagramme de cas d'utilisation du MVP"><br>
+  <img src="img/UseCase.png" alt="Diagramme de cas d'utilisation du MVP"><br>
   <em>Figure 7 — Diagramme de cas d'utilisation du MVP</em>
 </p>
 
@@ -328,7 +328,7 @@ Les diagrammes de séquence présentent le comportement dynamique du système su
 Ce scénario illustre l'utilisation du pattern Factory Method pour l'ajout d'un bloc dans un workflow.
 
 <p align="center">
-  <img src="docs/img/SeqCreerBlock.png" alt="Séquence — création d'un bloc"><br>
+  <img src="img/SeqCreerBlock.png" alt="Séquence — création d'un bloc"><br>
   <em>Figure 8 — Création d'un bloc</em>
 </p>
 
@@ -348,7 +348,7 @@ Le flux est le suivant :
 Ce scénario illustre la sérialisation d'un workflow via `to_dict()` puis son écriture sur le système de fichiers.
 
 <p align="center">
-  <img src="docs/img/SeqSave.png" alt="Séquence — sauvegarde d'un workflow"><br>
+  <img src="img/SeqSave.png" alt="Séquence — sauvegarde d'un workflow"><br>
   <em>Figure 9 — Sauvegarde d'un workflow</em>
 </p>
 
@@ -365,7 +365,7 @@ Le `WorkflowService` orchestre l'opération :
 Ce scénario décrit la reconstruction d'un workflow depuis un fichier existant.
 
 <p align="center">
-  <img src="docs/img/SeqLoad.png" alt="Séquence — chargement d'un workflow"><br>
+  <img src="img/SeqLoad.png" alt="Séquence — chargement d'un workflow"><br>
   <em>Figure 10 — Chargement d'un workflow</em>
 </p>
 
@@ -382,7 +382,7 @@ Le scénario de chargement repose sur :
 Ce scénario présente l'enchaînement des blocs au moment de l'exécution.
 
 <p align="center">
-  <img src="docs/img/SeqRun.png" alt="Séquence — exécution d'un workflow"><br>
+  <img src="img/SeqRun.png" alt="Séquence — exécution d'un workflow"><br>
   <em>Figure 11 — Exécution d'un workflow</em>
 </p>
 
@@ -402,7 +402,7 @@ Le résultat peut être affiché ou non selon le contexte d'exécution.
 Ce scénario présente la génération du script Python autonome.
 
 <p align="center">
-  <img src="docs/img/SeqExport.png" alt="Séquence — export d'un workflow"><br>
+  <img src="img/SeqExport.png" alt="Séquence — export d'un workflow"><br>
   <em>Figure 12 — Export d'un workflow</em>
 </p>
 
