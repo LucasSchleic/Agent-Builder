@@ -98,10 +98,53 @@ agent_builder/
 - Chaque objet métier expose `to_dict()` et `from_dict(data)`
 - `WorkflowService` orchestre lecture/écriture — jamais le domaine directement
 
+Schéma JSON d'un workflow :
+
+```json
+{
+  "id": "uuid-string",
+  "name": "nom_du_workflow",
+  "blocks": [
+    {
+      "id": "uuid-block",
+      "type": "LLMBlock",
+      "name": "Mon LLM",
+      "config": { "api_url": "...", "model_name": "...", "temperature": 0.7 },
+      "input_ports": [
+        { "id": "...", "name": "input", "direction": "input", "data_type": "str", "required": true }
+      ],
+      "output_ports": [
+        { "id": "...", "name": "output", "direction": "output", "data_type": "llm", "required": false }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "uuid-conn",
+      "source_block_id": "...",
+      "source_port_id": "...",
+      "target_block_id": "...",
+      "target_port_id": "..."
+    }
+  ]
+}
+```
+
 ---
 
 ## Références UML
-- Diagramme de classes : 'docs/uml/DiagClass.puml'
+- Diagramme de classes : `docs/uml/DiagClass.puml`
+
+---
+
+## Skills
+
+Les skills sont dans `.claude/skills/`. Consulter le skill correspondant avant toute tâche.
+
+| Skill | Quand le consulter |
+|---|---|
+| `blocks` | Avant d'implémenter ou modifier un type de bloc |
+| `export-format` | Avant de toucher à `export_service.py` ou `workflow_service.py` |
 
 ---
 
