@@ -1,0 +1,39 @@
+# ==============================================================================
+# Agent Builder — .gitignore
+# ==============================================================================
+
+# Environment variables — NEVER commit
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Django
+*.sqlite3
+staticfiles/
+media/
+
+# IDEs
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code — settings.json contains sensitive info
+.claude/settings.json

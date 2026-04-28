@@ -1,0 +1,16 @@
+# ==============================================================================
+# Agent Builder — Python Dependencies
+# ==============================================================================
+
+# Web framework
+django>=4.2,<5.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# LangChain (export + exécution)
+langchain>=0.2.0
+langchain-openai>=0.1.0
+
+# HTTP requests (HTTPBlock)
+requests>=2.31.0
