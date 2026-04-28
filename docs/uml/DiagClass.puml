@@ -1,0 +1,246 @@
+@startuml
+title Agent Builder - Factory Method + Observer académique aligné Guru
+
+
+package "Domain" {
+
+  class Workflow {
+    - id: str
+    - name: str
+    - blocks: List<Block>
+    - connections: List<Connection>
+    - subscribers: List<Subscriber>
+
+    + add_block(block: Block): void
+    + remove_block(block_id: str): void
+    + add_connection(connection: Connection): void
+    + remove_connection(connection_id: str): void
+    + get_block(block_id: str): Block
+    + validate(): bool
+    + to_dict(): dict
+    + from_dict(data: dict): Workflow
+
+    + subscribe(subscriber: Subscriber): void
+    + unsubscribe(subscriber: Subscriber): void
+    + notify_subscribers(): void
+  }
+
+  abstract class Block {
+    - id: str
+    - name: str
+    - input_ports: List<Port>
+    - output_ports: List<Port>
+    - config: dict
+
+    + validate(): bool
+    + to_dict(): dict
+    + from_dict(data: dict): Block
+    + get_dependencies(): List[str]
+    + generate_code_snippet(): str
+    + execute(context: dict): Any
+  }
+
+  class LLMBlock {
+    - api_url: str
+    - model_name: str
+    - temperature: float
+    - api_key_env_var: str
+  }
+
+  class AgentBlock {
+    - system_prompt: str
+    - user_prompt: str
+    - memory_enabled: bool
+    - llm_block_id: str
+    - tool_block_ids: List[str]
+
+    + get_dependencies(): List[str]
+  }
+
+  class HTTPBlock {
+    - method: str
+    - url: str
+    - headers: dict
+    - body: dict
+  }
+
+  class PythonScriptBlock {
+    - script_code: str
+    - function_name: str
+    - detected_inputs: List[str]
+    - detected_outputs: List[str]
+
+    + parse_signature(): void
+    + validate_script(): bool
+  }
+
+  class Port {
+    - id: str
+    - name: str
+    - direction: str
+    - data_type: str
+    - required: bool
+
+    + validate(): bool
+    + to_dict(): dict
+    + from_dict(data: dict): Port
+  }
+
+  class Connection {
+    - id: str
+    - source_block_id: str
+    - source_port_id: str
+    - target_block_id: str
+    - target_port_id: str
+
+    + validate(): bool
+    + to_dict(): dict
+    + from_dict(data: dict): Connection
+  }
+}
+
+package "Observer" {
+
+  interface Subscriber {
+    + update(workflow: Workflow): void
+  }
+}
+
+package "Factory Method" {
+
+  abstract class BlockCreator {
+    + add_block_to(workflow: Workflow): Block
+    # create_block(): Block
+  }
+
+  class LLMBlockCreator {
+    # create_block(): LLMBlock
+  }
+
+  class AgentBlockCreator {
+    # create_block(): AgentBlock
+  }
+
+  class HTTPBlockCreator {
+    # create_block(): HTTPBlock
+  }
+
+  class PythonScriptBlockCreator {
+    # create_block(): PythonScriptBlock
+  }
+}
+
+package "Application Services" {
+
+  class WorkflowService {
+    + create_workflow(name: str): Workflow
+    + load_workflow(path: str): Workflow
+    + save_workflow(workflow: Workflow, path: str): void
+    + save_as_workflow(workflow: Workflow, path: str): void
+    + list_workflows(directory: str): List[str]
+  }
+
+  class ExportService {
+    + generate_python(workflow: Workflow): str
+    + export_to_file(workflow: Workflow, path: str): void
+    + topological_sort(workflow: Workflow): List<Block>
+  }
+
+  class WorkflowExecutor {
+    + execute_workflow(workflow: Workflow): Any
+    + execute_block(block: Block, context: dict): Any
+    + prepare_inputs(block: Block, context: dict): dict
+    + topological_sort(workflow: Workflow): List<Block>
+  }
+}
+
+package "UI" {
+
+  class Toolbox {
+    + add_block(workflow: Workflow, creator: BlockCreator): Block
+    + list_available_block_types(): List[str]
+  }
+
+  class Toolbar {
+    + new_workflow(): void
+    + save_workflow(): void
+    + save_as_workflow(): void
+    + load_workflow(): void
+    + export_workflow(): void
+    + run_workflow(): void
+  }
+
+  class Canvas {
+    + render_workflow(workflow: Workflow): void
+    + add_block_ui(block: Block): void
+    + remove_block_ui(block_id: str): void
+    + move_block(block_id: str, x: int, y: int): void
+    + connect_ports(source_port_id: str, target_port_id: str): void
+    + delete_connection(connection_id: str): void
+    + update(workflow: Workflow): void
+  }
+
+  class WorkflowListPanel {
+    - workflow_names: List[str]
+
+    + display_workflows(): void
+    + select_workflow(workflow_name: str): void
+  }
+
+  class BlockUI {
+    - block_id: str
+    - x: int
+    - y: int
+
+    + move(x: int, y: int): void
+    + open_config(): void
+    + delete(): void
+  }
+}
+
+Block <|-- LLMBlock
+Block <|-- AgentBlock
+Block <|-- HTTPBlock
+Block <|-- PythonScriptBlock
+
+Workflow "1" *-- "0..*" Block
+Workflow "1" *-- "0..*" Connection
+Block "1" *-- "0..*" Port
+
+Connection --> Block : source
+Connection --> Block : target
+
+Subscriber <|.. Canvas
+Workflow o--> "0..*" Subscriber
+
+BlockCreator <|-- LLMBlockCreator
+BlockCreator <|-- AgentBlockCreator
+BlockCreator <|-- HTTPBlockCreator
+BlockCreator <|-- PythonScriptBlockCreator
+
+BlockCreator ..> Workflow
+BlockCreator ..> Block
+
+LLMBlockCreator ..> LLMBlock
+AgentBlockCreator ..> AgentBlock
+HTTPBlockCreator ..> HTTPBlock
+PythonScriptBlockCreator ..> PythonScriptBlock
+
+Toolbox ..> BlockCreator
+Toolbar ..> WorkflowService
+Toolbar ..> ExportService
+Toolbar ..> WorkflowExecutor
+WorkflowListPanel ..> WorkflowService
+
+WorkflowService ..> Workflow
+ExportService ..> Workflow
+ExportService ..> Block
+WorkflowExecutor ..> Workflow
+WorkflowExecutor ..> Block
+
+Canvas ..> Workflow
+Canvas ..> Connection
+Canvas ..> BlockUI
+BlockUI ..> Block
+
+@enduml
