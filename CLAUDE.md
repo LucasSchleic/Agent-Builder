@@ -49,13 +49,21 @@ agent_builder/
 │   │   ├── views.py            # Vues Django retournant du JSON
 │   │   └── urls.py
 │   │
+│   ├── tests/                   # Tests unitaires
 │   └── templates/
 │       └── index.html          # Frontend (canvas, toolbox, toolbar)
 │
 ├── docs/
-│   └── img/                    # Diagrammes UML (PNG)
-|   └── uml/
-|       └── DiagClass.puml
+│   ├── img/                    # Diagrammes UML (PNG)
+│   ├── uml/
+│   │   └── DiagClass.puml
+│   ├── Conception.md
+│   └── cahier-des-charges-Lucas.md
+│
+├── .claude/
+│   └── skills/                 # Skills consultés par Claude Code
+│       ├── blocks/SKILL.md
+│       └── export-format/SKILL.md
 │
 └── workflows/                  # Fichiers JSON des workflows sauvegardés
 ```
@@ -86,9 +94,19 @@ agent_builder/
 - `Canvas` implémente `Subscriber` et sa méthode `update(workflow)` — c'est le seul composant UI abonné
 - Ne pas contourner ce mécanisme en appelant directement le Canvas depuis le domaine
 
+### Composants UI
+
+| Composant | Rôle |
+|---|---|
+| `Toolbox` | Ajoute des blocs au workflow via un `BlockCreator` |
+| `Toolbar` | Actions globales : nouveau, sauvegarder, charger, exporter, exécuter |
+| `Canvas` | Zone d'édition principale — abonné au `Workflow` via Observer |
+| `WorkflowListPanel` | Liste les workflows sauvegardés disponibles au chargement |
+| `BlockUI` | Représentation visuelle d'un bloc sur le canvas |
+
 ### Exécution des workflows
 
-- `WorkflowExecutor` ordonne les blocs via un **tri topologique (algorithme de Kahn)**
+- `WorkflowExecutor` ordonne les blocs via un **tri topologique (DFS suffixe inversé)**
 - Il prépare les entrées de chaque bloc depuis un `context` partagé (dict Python)
 - Il appelle `block.execute(context)` dans l'ordre
 
@@ -156,6 +174,7 @@ Les skills sont dans `.claude/skills/`. Consulter le skill correspondant avant t
   - Fonctions et variables : `snake_case`
   - Constantes : `UPPER_SNAKE_CASE`
 - **Docstrings** : toutes les classes et méthodes publiques en ont une
+- **Interface `Block`** : tout bloc concret doit implémenter `execute(context)`, `generate_code_snippet()`, `validate()`, `to_dict()` et `from_dict(data)`
 - **Responsabilité unique** : chaque module a un rôle clair — ne pas faire déborder les services dans le domaine, ni le domaine dans l'UI
 - **Pas de code obscur** : tout code généré doit pouvoir être expliqué ligne par ligne
 
@@ -217,6 +236,7 @@ refactor: extract port validation to Port.validate()
 - Ajouter des docstrings et commentaires
 - Écrire des tests unitaires dans `core/tests/`
 - Refactorer du code existant tant que le comportement est préservé
+- Committer et **pusher** sur git après chaque modification significative
 
 ## Ce que Claude Code doit demander avant de faire
 
@@ -233,3 +253,5 @@ refactor: extract port validation to Port.validate()
 - [Django Docs](https://docs.djangoproject.com/)
 - [Refactoring Guru — Design Patterns](https://refactoring.guru/design-patterns)
 - [Generative AI Capgemini](https://generative-eu.engine.capgemini.com/)
+- Cahier des charges : `docs/cahier-des-charges-Lucas.md`
+- Dossier de conception : `docs/Conception.md`
