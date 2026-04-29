@@ -96,30 +96,25 @@ print(result)
 - Variables nommées d'après le nom du bloc en snake_case
 - Le script doit être exécutable avec `python <fichier>.py` sans l'application
 
-### Tri topologique (algorithme de Kahn)
+### Tri topologique (DFS suffix inverse)
 
 ```python
 def topological_sort(self, workflow: Workflow) -> List[Block]:
-    """Sort blocks in execution order using Kahn's algorithm."""
-    in_degree = {block.id: 0 for block in workflow.blocks}
-    adjacency = {block.id: [] for block in workflow.blocks}
+    visited = set()
+    result = []
 
-    for conn in workflow.connections:
-        adjacency[conn.source_block_id].append(conn.target_block_id)
-        in_degree[conn.target_block_id] += 1
+    def dfs(block_id: str):
+        visited.add(block_id)
+        for conn in workflow.connections:
+            if conn.source_block_id == block_id and conn.target_block_id not in visited:
+                dfs(conn.target_block_id)
+        result.append(block_id)
 
-    queue = [bid for bid, degree in in_degree.items() if degree == 0]
-    sorted_ids = []
+    for block in workflow.blocks:
+        if block.id not in visited:
+            dfs(block.id)
 
-    while queue:
-        current = queue.pop(0)
-        sorted_ids.append(current)
-        for neighbor in adjacency[current]:
-            in_degree[neighbor] -= 1
-            if in_degree[neighbor] == 0:
-                queue.append(neighbor)
-
-    return [workflow.get_block(bid) for bid in sorted_ids]
+    return [workflow.get_block(bid) for bid in reversed(result)]
 ```
 
 ### ExportService
