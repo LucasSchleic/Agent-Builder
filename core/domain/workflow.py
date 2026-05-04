@@ -41,6 +41,7 @@ class Workflow:
         self.name = name
         self.blocks: List[Block] = []
         self.connections: List[Connection] = []
+        # Underscore prefix: subscribers are runtime UI objects, never serialized.
         self._subscribers: List[Subscriber] = []
 
     # ------------------------------------------------------------------
@@ -63,7 +64,7 @@ class Workflow:
         block = self.get_block(block_id)
         self.blocks.remove(block)
 
-        # Remove every connection that references this block.
+        # Rebuild the list instead of mutating it while iterating — avoids skipped items.
         self.connections = [
             c for c in self.connections
             if c.source_block_id != block_id and c.target_block_id != block_id
@@ -143,6 +144,7 @@ class Workflow:
 
     def subscribe(self, subscriber: Subscriber) -> None:
         """Register a subscriber to receive state-change notifications."""
+        # Guard against double-registration, which would trigger update() twice per change.
         if subscriber not in self._subscribers:
             self._subscribers.append(subscriber)
 

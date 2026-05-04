@@ -121,6 +121,7 @@ class LLMBlock(Block):
 
     def execute(self, context: dict) -> Any:
         """Instantiate and return a configured ChatOpenAI object."""
+        # Lazy import: keeps the domain importable even if langchain is not installed yet.
         from langchain_openai import ChatOpenAI
 
         return ChatOpenAI(
@@ -201,6 +202,7 @@ class AgentBlock(Block):
 
     def execute(self, context: dict) -> Any:
         """Build and invoke a LangChain ReAct AgentExecutor."""
+        # Lazy imports: same reason as LLMBlock — defer until actually needed.
         from langchain.agents import AgentExecutor, create_react_agent
         from langchain.memory import ConversationBufferMemory
         from langchain.tools import Tool
@@ -211,6 +213,8 @@ class AgentBlock(Block):
         tools = [
             Tool(
                 name=tid[:8],
+                # tid=tid captures the current loop value — without it every lambda
+                # would close over the same final value of tid after the loop ends.
                 func=lambda _, tid=tid: context[tid],
                 description="HTTP tool",
             )
@@ -280,6 +284,7 @@ class HTTPBlock(Block):
 
     def execute(self, context: dict) -> Any:
         """Send the configured HTTP request and return the JSON response body."""
+        # Lazy import: avoids requiring requests at domain import time.
         import requests
 
         response = requests.request(
@@ -376,6 +381,7 @@ class PythonScriptBlock(Block):
     def execute(self, context: dict) -> Any:
         """Execute the user's script function with inputs pulled from context."""
         local_vars: dict = {}
+        # Empty dict for globals isolates the script from the application's namespace.
         exec(self.config["script_code"], {}, local_vars)  # noqa: S102
         func = local_vars[self.config["function_name"]]
         inputs = {k: context[k] for k in self.config["detected_inputs"]}
@@ -383,3 +389,4 @@ class PythonScriptBlock(Block):
 
     def generate_code_snippet(self) -> str:
         return self.config.get("script_code", "# no script defined")
+ 

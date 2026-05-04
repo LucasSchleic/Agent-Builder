@@ -39,6 +39,7 @@ class Connection:
             self.target_block_id,
             self.target_port_id,
         ])
+        # A block connecting to itself would create a cycle that breaks topological sort.
         no_self_loop = self.source_block_id != self.target_block_id
         return all_set and no_self_loop
 
