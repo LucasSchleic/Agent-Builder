@@ -29,6 +29,7 @@ class Block(ABC):
         """
         self.id = block_id or str(uuid.uuid4())
         self.name = name
+        # Guard against a caller passing None explicitly instead of omitting the argument.
         self.config = config or {}
         self.input_ports: List[Port] = []
         self.output_ports: List[Port] = []
@@ -53,6 +54,7 @@ class Block(ABC):
         """Serialize the block to a dict for JSON persistence."""
         return {
             "id": self.id,
+            # The class name is saved so from_dict() knows which subclass to recreate.
             "type": self.__class__.__name__,
             "name": self.name,
             "config": self.config,
@@ -67,6 +69,7 @@ class Block(ABC):
         Dispatches on data['type'] to instantiate the matching concrete class,
         then restores ports from the saved data.
         """
+        # Mapping from the saved type string to the actual Python class.
         mapping = {
             "LLMBlock": LLMBlock,
             "AgentBlock": AgentBlock,
@@ -82,6 +85,8 @@ class Block(ABC):
             config=data["config"],
             block_id=data["id"],
         )
+        # Ports are restored from saved data instead of relying on __init__ defaults,
+        # so that any user-edited port IDs are preserved across save/load cycles.
         block.input_ports = [Port.from_dict(p) for p in data.get("input_ports", [])]
         block.output_ports = [Port.from_dict(p) for p in data.get("output_ports", [])]
         return block
@@ -103,6 +108,8 @@ class LLMBlock(Block):
 
     def __init__(self, name: str = "LLM", config: dict = None, block_id: str = None):
         super().__init__(name, config, block_id)
+        # setdefault only sets the value if the key is not already present,
+        # so a config passed at construction time is never overwritten.
         self.config.setdefault("api_url", "")
         self.config.setdefault("model_name", "")
         self.config.setdefault("temperature", 0.7)
@@ -112,6 +119,7 @@ class LLMBlock(Block):
         ]
 
     def validate(self) -> bool:
+        # All three fields must be non-empty: without them the ChatOpenAI call would fail.
         return (
             super().validate()
             and bool(self.config.get("api_url"))
@@ -128,12 +136,15 @@ class LLMBlock(Block):
             base_url=self.config["api_url"],
             model=self.config["model_name"],
             temperature=self.config["temperature"],
+            # Read the API key from the environment at runtime — never hardcoded.
             api_key=os.getenv(self.config["api_key_env_var"]),
         )
 
     def generate_code_snippet(self) -> str:
+        # Variable name derived from the block name, e.g. "My LLM" → my_llm.
         var = _to_var_name(self.name)
         env_var = self.config["api_key_env_var"]
+        # !r adds quotes around string values in the f-string output.
         return (
             f"{var} = ChatOpenAI(\n"
             f"    base_url=os.getenv('GENAI_API_URL'),\n"
@@ -156,6 +167,8 @@ class AgentBlock(Block):
     """
 
     # Minimal local ReAct prompt — avoids hub.pull() to stay network-free.
+    # Placeholders {tools}, {tool_names}, {input}, {agent_scratchpad} are
+    # filled in automatically by LangChain's AgentExecutor at runtime.
     _REACT_PROMPT = (
         "Answer the following questions as best you can. "
         "You have access to the following tools:\n\n"
@@ -179,10 +192,13 @@ class AgentBlock(Block):
         self.config.setdefault("system_prompt", "")
         self.config.setdefault("user_prompt", "")
         self.config.setdefault("memory_enabled", False)
+        # llm_block_id and tool_block_ids are set by the user when wiring the canvas.
         self.config.setdefault("llm_block_id", "")
         self.config.setdefault("tool_block_ids", [])
         self.input_ports = [
+            # llm_input is required: the agent cannot run without an LLM.
             Port(name="llm_input", direction="input", data_type="llm", required=True),
+            # tool_input is optional: the agent can run with zero tools.
             Port(name="tool_input", direction="input", data_type="tool", required=False),
         ]
         self.output_ports = [
@@ -190,6 +206,7 @@ class AgentBlock(Block):
         ]
 
     def validate(self) -> bool:
+        # An agent without an LLM reference is not executable.
         return super().validate() and bool(self.config.get("llm_block_id"))
 
     def get_dependencies(self) -> List[str]:
@@ -208,10 +225,12 @@ class AgentBlock(Block):
         from langchain.tools import Tool
         from langchain_core.prompts import PromptTemplate
 
+        # Retrieve the ChatOpenAI object produced by the upstream LLMBlock.
         llm = context[self.config["llm_block_id"]]
 
         tools = [
             Tool(
+                # Use only the first 8 chars of the ID as tool name to keep it short.
                 name=tid[:8],
                 # tid=tid captures the current loop value — without it every lambda
                 # would close over the same final value of tid after the loop ends.
@@ -224,12 +243,15 @@ class AgentBlock(Block):
         prompt = PromptTemplate.from_template(self._REACT_PROMPT)
         agent = create_react_agent(llm=llm, tools=tools, prompt=prompt)
 
+        # Build kwargs separately so memory can be added conditionally.
         executor_kwargs: dict = {"agent": agent, "tools": tools, "verbose": True}
         if self.config.get("memory_enabled"):
             executor_kwargs["memory"] = ConversationBufferMemory()
 
         executor = AgentExecutor(**executor_kwargs)
         result = executor.invoke({"input": self.config["user_prompt"]})
+        # AgentExecutor returns a dict — "output" holds the final answer.
+        # Fallback to the full dict if the key is absent (older LangChain versions).
         return result.get("output", result)
 
     def generate_code_snippet(self) -> str:
@@ -238,12 +260,14 @@ class AgentBlock(Block):
         if self.config.get("memory_enabled"):
             lines.append(f"memory_{var} = ConversationBufferMemory()")
         lines.append(f"agent_{var} = AgentExecutor(")
+        # llm, tools and react_prompt are injected by ExportService before this snippet.
         lines.append(f"    agent=create_react_agent(llm=llm, tools=tools, prompt=react_prompt),")
         lines.append(f"    tools=tools,")
         lines.append(f"    verbose=True,")
         if self.config.get("memory_enabled"):
             lines.append(f"    memory=memory_{var},")
         lines.append(f")")
+        # Double braces {{ }} produce literal { } in the f-string output.
         lines.append(
             f"result_{var} = agent_{var}.invoke({{\"input\": {self.config['user_prompt']!r}}})"
         )
@@ -267,8 +291,10 @@ class HTTPBlock(Block):
         self.config.setdefault("method", "GET")
         self.config.setdefault("url", "")
         self.config.setdefault("headers", {})
+        # body is only sent for POST/PUT requests; ignored for GET/DELETE.
         self.config.setdefault("body", {})
         self.input_ports = [
+            # input is optional: HTTPBlock can be the first block in a workflow.
             Port(name="http_input", direction="input", data_type="any", required=False),
         ]
         self.output_ports = [
@@ -276,6 +302,7 @@ class HTTPBlock(Block):
         ]
 
     def validate(self) -> bool:
+        # Only standard HTTP methods are accepted to prevent misconfiguration.
         return (
             super().validate()
             and self.config.get("method") in ("GET", "POST", "PUT", "DELETE")
@@ -290,16 +317,20 @@ class HTTPBlock(Block):
         response = requests.request(
             method=self.config["method"],
             url=self.config["url"],
+            # `or {}` converts None (if the key exists but was set to None) to an empty dict.
             headers=self.config.get("headers") or {},
+            # Pass body as JSON only when it has content; None disables the request body.
             json=self.config.get("body") or None,
         )
         return response.json()
 
     def generate_code_snippet(self) -> str:
+        """Generate the Tool-wrapped snippet — used when connected to an AgentBlock."""
         var = _to_var_name(self.name)
         method = self.config["method"]
         url = self.config["url"]
         headers = self.config.get("headers") or {}
+        # The HTTP call is wrapped in a function so it can be passed as a LangChain Tool.
         return (
             f"def block_{var}(input=None):\n"
             f"    response = requests.request(\n"
@@ -313,6 +344,25 @@ class HTTPBlock(Block):
             f"    func=block_{var},\n"
             f"    description='HTTP {method} {url}',\n"
             f")"
+        )
+
+    def generate_standalone_snippet(self) -> str:
+        """Generate a direct HTTP call snippet — used when not connected to any AgentBlock.
+
+        Unlike generate_code_snippet(), this does not wrap the call in a function
+        or create a Tool object. It simply executes the request and prints the result.
+        """
+        var = _to_var_name(self.name)
+        method = self.config["method"]
+        url = self.config["url"]
+        headers = self.config.get("headers") or {}
+        return (
+            f"result_{var} = requests.request(\n"
+            f"    {method!r},\n"
+            f"    {url!r},\n"
+            f"    headers={headers!r},\n"
+            f")\n"
+            f"print(result_{var}.json())"
         )
 
 
@@ -330,10 +380,13 @@ class PythonScriptBlock(Block):
     def __init__(self, name: str = "Script", config: dict = None, block_id: str = None):
         super().__init__(name, config, block_id)
         self.config.setdefault("script_code", "")
+        # function_name identifies which function inside the script to call.
         self.config.setdefault("function_name", "run")
         self.config.setdefault("detected_inputs", [])
         self.config.setdefault("detected_outputs", ["output"])
 
+        # If the block is loaded from saved data, the script is already set —
+        # parse it immediately so ports reflect the actual function signature.
         if self.config["script_code"]:
             self.parse_signature()
 
@@ -343,21 +396,27 @@ class PythonScriptBlock(Block):
         Updates detected_inputs in config and rebuilds input_ports and output_ports.
         """
         try:
+            # Parse the script source code into an AST without executing it.
             tree = ast.parse(self.config["script_code"])
             for node in ast.walk(tree):
+                # Find the function whose name matches function_name.
                 if (
                     isinstance(node, ast.FunctionDef)
                     and node.name == self.config["function_name"]
                 ):
+                    # Extract parameter names from the function definition.
                     self.config["detected_inputs"] = [arg.arg for arg in node.args.args]
                     break
         except SyntaxError:
+            # If the script has a syntax error, keep whatever inputs were detected before.
             pass
 
+        # Rebuild one input port per detected parameter.
         self.input_ports = [
             Port(name=param, direction="input", data_type="any", required=True)
             for param in self.config["detected_inputs"]
         ]
+        # Always a single output port regardless of what the function returns.
         self.output_ports = [
             Port(name="output", direction="output", data_type="any"),
         ]
@@ -381,12 +440,15 @@ class PythonScriptBlock(Block):
     def execute(self, context: dict) -> Any:
         """Execute the user's script function with inputs pulled from context."""
         local_vars: dict = {}
-        # Empty dict for globals isolates the script from the application's namespace.
+        # Empty dict for globals isolates the script from the application's namespace,
+        # preventing the script from accidentally reading or modifying application state.
         exec(self.config["script_code"], {}, local_vars)  # noqa: S102
+        # Retrieve the target function from the local scope created by exec.
         func = local_vars[self.config["function_name"]]
+        # Pull only the inputs the function expects from the shared execution context.
         inputs = {k: context[k] for k in self.config["detected_inputs"]}
         return func(**inputs)
 
     def generate_code_snippet(self) -> str:
+        # The script code is already valid Python — return it as-is.
         return self.config.get("script_code", "# no script defined")
- 
