@@ -21,6 +21,53 @@ def _make_workflow() -> Workflow:
     return wf
 
 
+class TestWorkflowServiceCreate(unittest.TestCase):
+    """Tests for WorkflowService.create_workflow."""
+
+    def setUp(self):
+        self.service = WorkflowService()
+
+    def test_returns_workflow_instance(self):
+        wf = self.service.create_workflow("my_wf")
+        self.assertIsInstance(wf, Workflow)
+
+    def test_sets_name(self):
+        wf = self.service.create_workflow("my_wf")
+        self.assertEqual(wf.name, "my_wf")
+
+    def test_starts_empty(self):
+        wf = self.service.create_workflow("my_wf")
+        self.assertEqual(wf.blocks, [])
+        self.assertEqual(wf.connections, [])
+
+    def test_generates_unique_ids(self):
+        wf1 = self.service.create_workflow("a")
+        wf2 = self.service.create_workflow("b")
+        self.assertNotEqual(wf1.id, wf2.id)
+
+
+class TestWorkflowServiceSaveAs(unittest.TestCase):
+    """Tests for WorkflowService.save_as_workflow."""
+
+    def setUp(self):
+        self.service = WorkflowService()
+        self.tmp_dir = tempfile.mkdtemp()
+
+    def test_creates_file_at_new_path(self):
+        wf = _make_workflow()
+        path = os.path.join(self.tmp_dir, "copy.json")
+        self.service.save_as_workflow(wf, path)
+        self.assertTrue(os.path.isfile(path))
+
+    def test_saved_content_matches_original(self):
+        wf = _make_workflow()
+        path = os.path.join(self.tmp_dir, "copy.json")
+        self.service.save_as_workflow(wf, path)
+        loaded = self.service.load_workflow(path)
+        self.assertEqual(loaded.id, wf.id)
+        self.assertEqual(loaded.name, wf.name)
+
+
 class TestWorkflowServiceSave(unittest.TestCase):
     """Tests for WorkflowService.save_workflow."""
 

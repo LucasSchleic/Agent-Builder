@@ -6,7 +6,17 @@ from core.domain.workflow import Workflow
 
 
 class WorkflowService:
-    """Handles persistence of Workflow objects: save, load, and list."""
+    """Handles persistence of Workflow objects: create, save, load, and list."""
+
+    def create_workflow(self, name: str) -> Workflow:
+        """Instantiate and return a new empty Workflow.
+
+        Args:
+            name: Display name for the new workflow.
+        Returns:
+            A fresh Workflow instance with no blocks or connections.
+        """
+        return Workflow(name=name)
 
     def save_workflow(self, workflow: Workflow, path: str) -> None:
         """Serialize a workflow to JSON and write it to disk.
@@ -18,6 +28,18 @@ class WorkflowService:
         data = workflow.to_dict()
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
+
+    def save_as_workflow(self, workflow: Workflow, path: str) -> None:
+        """Save a workflow to a new path (Save As).
+
+        Identical to save_workflow at the service level — the distinction
+        between Save and Save As is handled by the UI (new path chosen by user).
+
+        Args:
+            workflow: The Workflow instance to persist.
+            path: New destination path for the .json file.
+        """
+        self.save_workflow(workflow, path)
 
     def load_workflow(self, path: str) -> Workflow:
         """Read a JSON file from disk and reconstruct a Workflow instance.
