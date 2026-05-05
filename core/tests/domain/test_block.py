@@ -167,6 +167,29 @@ class TestHTTPBlock(unittest.TestCase):
         self.assertIn("requests.request", snippet)
         self.assertIn("Tool", snippet)
 
+    def test_generate_code_snippet_wraps_in_function_and_tool(self):
+        snippet = self._make_valid().generate_code_snippet()
+        self.assertIn("def block_", snippet)
+        self.assertIn("Tool(", snippet)
+
+    def test_generate_standalone_snippet_contains_requests(self):
+        snippet = self._make_valid().generate_standalone_snippet()
+        self.assertIn("requests.request", snippet)
+
+    def test_generate_standalone_snippet_no_tool_wrapper(self):
+        snippet = self._make_valid().generate_standalone_snippet()
+        self.assertNotIn("Tool(", snippet)
+        self.assertNotIn("def block_", snippet)
+
+    def test_generate_standalone_snippet_prints_result(self):
+        snippet = self._make_valid().generate_standalone_snippet()
+        self.assertIn("print(", snippet)
+
+    def test_generate_standalone_snippet_uses_block_var_name(self):
+        block = HTTPBlock(name="My API", config={"method": "GET", "url": "http://x.com"})
+        snippet = block.generate_standalone_snippet()
+        self.assertIn("result_my_api", snippet)
+
 
 class TestPythonScriptBlock(unittest.TestCase):
     """Tests for PythonScriptBlock."""
