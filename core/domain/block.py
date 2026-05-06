@@ -218,60 +218,65 @@ class AgentBlock(Block):
         return deps
 
     def execute(self, context: dict) -> Any:
-        """Build and invoke a LangChain ReAct AgentExecutor."""
-        # Lazy imports: same reason as LLMBlock — defer until actually needed.
-        from langchain.agents import AgentExecutor, create_react_agent
-        from langchain.memory import ConversationBufferMemory
-        from langchain.tools import Tool
-        from langchain_core.prompts import PromptTemplate
+        """Build and invoke a LangChain agent using the create_agent API (v1.x)."""
+        # Lazy imports — defer until actually needed.
+        from langchain.agents import create_agent
+        from langchain_core.tools import Tool
 
         # Retrieve the ChatOpenAI object produced by the upstream LLMBlock.
         llm = context[self.config["llm_block_id"]]
 
         tools = [
             Tool(
-                # Use only the first 8 chars of the ID as tool name to keep it short.
                 name=tid[:8],
-                # tid=tid captures the current loop value — without it every lambda
-                # would close over the same final value of tid after the loop ends.
+                # tid=tid captures the current loop value to avoid the late-binding closure trap.
                 func=lambda _, tid=tid: context[tid],
                 description="HTTP tool",
             )
             for tid in self.config.get("tool_block_ids", [])
         ]
 
-        prompt = PromptTemplate.from_template(self._REACT_PROMPT)
-        agent = create_react_agent(llm=llm, tools=tools, prompt=prompt)
-
-        # Build kwargs separately so memory can be added conditionally.
-        executor_kwargs: dict = {"agent": agent, "tools": tools, "verbose": True}
+        agent_kwargs: dict = {
+            "model": llm,
+            "tools": tools or None,
+        }
+        # Pass the system prompt if one is configured.
+        if self.config.get("system_prompt"):
+            agent_kwargs["system_prompt"] = self.config["system_prompt"]
+        # Memory is implemented via a LangGraph MemorySaver checkpointer.
         if self.config.get("memory_enabled"):
-            executor_kwargs["memory"] = ConversationBufferMemory()
+            from langgraph.checkpoint.memory import MemorySaver
+            agent_kwargs["checkpointer"] = MemorySaver()
 
-        executor = AgentExecutor(**executor_kwargs)
-        result = executor.invoke({"input": self.config["user_prompt"]})
-        # AgentExecutor returns a dict — "output" holds the final answer.
-        # Fallback to the full dict if the key is absent (older LangChain versions).
-        return result.get("output", result)
+        agent = create_agent(**agent_kwargs)
+        result = agent.invoke({
+            "messages": [{"role": "user", "content": self.config["user_prompt"]}]
+        })
+        # create_agent returns a state dict with a 'messages' list.
+        # The last message is the AI's final response.
+        messages = result.get("messages", [])
+        if messages:
+            last = messages[-1]
+            return last.content if hasattr(last, "content") else str(last)
+        return str(result)
 
     def generate_code_snippet(self) -> str:
         var = _to_var_name(self.name)
         lines = []
+        # llm and tools are injected by ExportService before this snippet.
+        lines.append(f"agent_{var} = create_agent(")
+        lines.append(f"    model=llm,")
+        lines.append(f"    tools=tools or None,")
+        if self.config.get("system_prompt"):
+            lines.append(f"    system_prompt={self.config['system_prompt']!r},")
         if self.config.get("memory_enabled"):
-            lines.append(f"memory_{var} = ConversationBufferMemory()")
-        lines.append(f"agent_{var} = AgentExecutor(")
-        # llm, tools and react_prompt are injected by ExportService before this snippet.
-        lines.append(f"    agent=create_react_agent(llm=llm, tools=tools, prompt=react_prompt),")
-        lines.append(f"    tools=tools,")
-        lines.append(f"    verbose=True,")
-        if self.config.get("memory_enabled"):
-            lines.append(f"    memory=memory_{var},")
+            lines.append(f"    checkpointer=MemorySaver(),")
         lines.append(f")")
         # Double braces {{ }} produce literal { } in the f-string output.
         lines.append(
-            f"result_{var} = agent_{var}.invoke({{\"input\": {self.config['user_prompt']!r}}})"
+            f"result_{var} = agent_{var}.invoke({{\"messages\": [{{\"role\": \"user\", \"content\": {self.config['user_prompt']!r}}}]}})"
         )
-        lines.append(f"print(result_{var})")
+        lines.append(f"print(result_{var}['messages'][-1].content)")
         return "\n".join(lines)
 
 

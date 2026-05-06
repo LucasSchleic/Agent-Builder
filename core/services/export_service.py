@@ -62,17 +62,15 @@ class ExportService:
         if any(isinstance(b, LLMBlock) for b in blocks):
             imports.append("from langchain_openai import ChatOpenAI")
 
-        # Both AgentBlock and HTTPBlock produce LangChain Tool objects.
+        # Tool class is used by HTTPBlock (as tool) and AgentBlock.
         if any(isinstance(b, (AgentBlock, HTTPBlock)) for b in blocks):
-            imports.append("from langchain.tools import Tool")
+            imports.append("from langchain_core.tools import Tool")
 
         if any(isinstance(b, AgentBlock) for b in blocks):
-            imports.append("from langchain.agents import AgentExecutor, create_react_agent")
-            # PromptTemplate is needed to build the ReAct prompt inline.
-            imports.append("from langchain_core.prompts import PromptTemplate")
-            # ConversationBufferMemory is only needed when at least one agent uses memory.
+            imports.append("from langchain.agents import create_agent")
+            # MemorySaver is only needed when at least one agent enables memory.
             if any(isinstance(b, AgentBlock) and b.config.get("memory_enabled") for b in blocks):
-                imports.append("from langchain.memory import ConversationBufferMemory")
+                imports.append("from langgraph.checkpoint.memory import MemorySaver")
 
         # HTTPBlock uses the requests library to make HTTP calls.
         if any(isinstance(b, HTTPBlock) for b in blocks):
@@ -119,13 +117,6 @@ class ExportService:
                 pass
         # e.g. tools = [search_tool, weather_tool]
         lines.append(f"tools = [{', '.join(tool_vars)}]")
-
-        # --- react_prompt ---
-        # Inline the ReAct prompt directly so the exported script is self-contained
-        # and does not need a network call to hub.pull().
-        lines.append("react_prompt = PromptTemplate.from_template(")
-        lines.append(f"    {AgentBlock._REACT_PROMPT!r}")
-        lines.append(")")
 
         return lines
 

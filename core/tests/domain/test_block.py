@@ -106,19 +106,19 @@ class TestAgentBlock(unittest.TestCase):
         self.assertIsInstance(restored, AgentBlock)
         self.assertEqual(restored.config["llm_block_id"], "llm-uuid-123")
 
-    def test_generate_code_snippet_contains_agent_executor(self):
+    def test_generate_code_snippet_contains_create_agent(self):
         snippet = self._make_valid().generate_code_snippet()
-        self.assertIn("AgentExecutor", snippet)
+        self.assertIn("create_agent", snippet)
 
     def test_generate_code_snippet_with_memory(self):
         block = self._make_valid()
         block.config["memory_enabled"] = True
         snippet = block.generate_code_snippet()
-        self.assertIn("ConversationBufferMemory", snippet)
+        self.assertIn("MemorySaver", snippet)
 
     def test_generate_code_snippet_without_memory(self):
         snippet = self._make_valid().generate_code_snippet()
-        self.assertNotIn("ConversationBufferMemory", snippet)
+        self.assertNotIn("MemorySaver", snippet)
 
 
 class TestHTTPBlock(unittest.TestCase):

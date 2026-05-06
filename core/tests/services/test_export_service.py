@@ -102,23 +102,22 @@ class TestCollectImports(unittest.TestCase):
 
     def test_agent_block_adds_langchain_agents(self):
         imports = self.service._collect_imports([_agent()])
-        self.assertTrue(any("AgentExecutor" in i for i in imports))
-        self.assertTrue(any("PromptTemplate" in i for i in imports))
+        self.assertTrue(any("create_agent" in i for i in imports))
 
     def test_memory_enabled_adds_memory_import(self):
         agent = AgentBlock(name="A", block_id="a1", config={
             "llm_block_id": "llm-1", "memory_enabled": True,
         })
         imports = self.service._collect_imports([agent])
-        self.assertTrue(any("ConversationBufferMemory" in i for i in imports))
+        self.assertTrue(any("MemorySaver" in i for i in imports))
 
     def test_memory_disabled_no_memory_import(self):
         imports = self.service._collect_imports([_agent()])
-        self.assertFalse(any("ConversationBufferMemory" in i for i in imports))
+        self.assertFalse(any("MemorySaver" in i for i in imports))
 
     def test_no_duplicate_tool_import(self):
         imports = self.service._collect_imports([_http(), _agent()])
-        tool_imports = [i for i in imports if "Tool" in i and "from langchain.tools" in i]
+        tool_imports = [i for i in imports if "Tool" in i and "from langchain_core.tools" in i]
         self.assertEqual(len(tool_imports), 1)
 
 
@@ -174,7 +173,7 @@ class TestGeneratePython(unittest.TestCase):
         self.assertIn("Tool(", script)
         self.assertIn("def block_", script)
 
-    def test_agent_glue_injects_tools_and_prompt(self):
+    def test_agent_glue_injects_tools_and_create_agent(self):
         wf = Workflow(name="w")
         llm = _llm()
         agent = _agent(llm_id="llm-1", tool_ids=[])
@@ -182,7 +181,7 @@ class TestGeneratePython(unittest.TestCase):
         wf.add_block(agent)
         script = self.service.generate_python(wf)
         self.assertIn("tools = []", script)
-        self.assertIn("react_prompt", script)
+        self.assertIn("create_agent", script)
 
     def test_agent_glue_injects_llm_alias_when_needed(self):
         wf = Workflow(name="w")
