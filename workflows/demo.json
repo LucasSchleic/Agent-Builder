@@ -7,8 +7,8 @@
       "type": "LLMBlock",
       "name": "Mon LLM",
       "config": {
-        "api_url": "https://generative-eu.engine.capgemini.com/api/v1",
-        "model_name": "gpt-4o",
+        "api_url": "https://openai.generative-eu.engine.capgemini.com/v1",
+        "model_name": "anthropic.claude-3-haiku-20240307-v1:0",
         "temperature": 0.7,
         "api_key_env_var": "GENAI_API_KEY"
       },
