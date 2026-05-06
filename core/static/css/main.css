@@ -1,0 +1,34 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg:      #0d0d16;
+    --panel:   #131320;
+    --canvas:  #0f0f1a;
+    --accent:  #7c3aed;
+    --accent2: #a855f7;
+    --glow:    #c084fc;
+    --border:  #252538;
+    --text:    #ddd8f0;
+    --dim:     #6868a0;
+}
+
+html { height: 100%; }
+
+body {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+#main-layout {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 210px 1fr 252px;
+    grid-template-rows: 1fr;
+    min-height: 0;
+    overflow: hidden;
+}

@@ -1,0 +1,78 @@
+#canvas-wrapper {
+    position: relative;
+    overflow: hidden;
+    background: var(--canvas);
+    height: 100%;
+}
+
+#canvas {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    background-color: #0f0f1a;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    transition: box-shadow 0.15s;
+}
+
+#canvas.drag-over {
+    box-shadow: inset 0 0 0 2px #7c3aed88;
+}
+
+#canvas-hint {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #202035;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    pointer-events: none;
+    user-select: none;
+}
+
+#svg-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.conn-path {
+    stroke: #7c3aed;
+    stroke-width: 2;
+    fill: none;
+    pointer-events: none;
+    opacity: 0.75;
+    stroke-linecap: round;
+    transition: stroke 0.1s, opacity 0.1s;
+}
+
+.conn-path-hit {
+    stroke: transparent;
+    stroke-width: 14;
+    fill: none;
+    pointer-events: stroke;
+    cursor: pointer;
+}
+
+.conn-group:hover .conn-path {
+    stroke: #e879f9;
+    opacity: 1;
+}
+
+#preview-line {
+    stroke: #c084fc;
+    stroke-width: 2;
+    stroke-dasharray: 6 4;
+    fill: none;
+    pointer-events: none;
+    opacity: 0.8;
+}

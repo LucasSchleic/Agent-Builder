@@ -1,0 +1,73 @@
+{
+  "id": "b1b2c3d4-e5f6-7890-abcd-ef1234567891",
+  "name": "http_test",
+  "blocks": [
+    {
+      "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "type": "HTTPBlock",
+      "name": "API Blague",
+      "config": {
+        "method": "GET",
+        "url": "https://official-joke-api.appspot.com/random_joke",
+        "headers": {},
+        "body": {}
+      },
+      "input_ports": [
+        {
+          "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab",
+          "name": "http_input",
+          "direction": "input",
+          "data_type": "any",
+          "required": false
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac",
+          "name": "http_output",
+          "direction": "output",
+          "data_type": "dict",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "type": "PythonScriptBlock",
+      "name": "Formateur",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(http_data):\n    setup = http_data.get('setup', '')\n    punchline = http_data.get('punchline', '')\n    return f'Q: {setup}\\nA: {punchline}'",
+        "detected_inputs": ["http_data"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {
+          "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+          "name": "http_data",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "cccccccc-cccc-cccc-cccc-cccccccccc10",
+      "source_block_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "source_port_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaac",
+      "target_block_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "target_port_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1"
+    }
+  ]
+}

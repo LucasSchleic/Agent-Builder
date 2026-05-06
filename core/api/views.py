@@ -280,7 +280,7 @@ def run_workflow(request):
     wf = _workflow_from_body(data)
     try:
         context = _executor.execute_workflow(wf)
-    except ValueError as exc:
+    except Exception as exc:
         return JsonResponse({"error": str(exc)}, status=400)
 
     # Only primitive types can be serialized directly; everything else becomes a string.

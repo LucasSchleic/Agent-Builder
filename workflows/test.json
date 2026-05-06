@@ -1,0 +1,65 @@
+{
+  "id": "06ac0fe4-e705-454e-ac0a-0006d12076fc",
+  "name": "test",
+  "blocks": [
+    {
+      "id": "efd17203-e392-4d39-9263-167867e01e8e",
+      "type": "HTTPBlock",
+      "name": "HTTP",
+      "config": {
+        "method": "GET",
+        "url": "",
+        "headers": {},
+        "body": {}
+      },
+      "input_ports": [
+        {
+          "id": "27ad6c28-a9a3-4f03-84bd-d5648a21d868",
+          "name": "http_input",
+          "direction": "input",
+          "data_type": "any",
+          "required": false
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "b1d670f8-a81b-4059-a80a-cb31cb7565b5",
+          "name": "http_output",
+          "direction": "output",
+          "data_type": "dict",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "e0b80d12-585d-4acf-a71a-ad793211b41d",
+      "type": "LLMBlock",
+      "name": "LLM",
+      "config": {
+        "api_url": "",
+        "model_name": "",
+        "temperature": 0.7,
+        "api_key_env_var": "GENAI_API_KEY"
+      },
+      "input_ports": [],
+      "output_ports": [
+        {
+          "id": "6dab8bd1-3d20-4d5b-8f8f-8d2825c07b64",
+          "name": "llm_output",
+          "direction": "output",
+          "data_type": "llm",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "3a31522b-333f-4398-983a-a533a5cf0dd3",
+      "source_block_id": "e0b80d12-585d-4acf-a71a-ad793211b41d",
+      "source_port_id": "6dab8bd1-3d20-4d5b-8f8f-8d2825c07b64",
+      "target_block_id": "efd17203-e392-4d39-9263-167867e01e8e",
+      "target_port_id": "27ad6c28-a9a3-4f03-84bd-d5648a21d868"
+    }
+  ]
+}

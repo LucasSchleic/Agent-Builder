@@ -1,7 +1,77 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
-<head><title>Agent Builder</title></head>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Agent Builder</title>
+
+<!-- CSS — one file per UI component -->
+<link rel="stylesheet" href="{% static 'css/main.css' %}">
+<link rel="stylesheet" href="{% static 'css/toolbar.css' %}">
+<link rel="stylesheet" href="{% static 'css/left_panel.css' %}">
+<link rel="stylesheet" href="{% static 'css/canvas.css' %}">
+<link rel="stylesheet" href="{% static 'css/block_ui.css' %}">
+<link rel="stylesheet" href="{% static 'css/config_panel.css' %}">
+<link rel="stylesheet" href="{% static 'css/modal.css' %}">
+</head>
 <body>
-    <h1>Agent Builder</h1>
+
+<!-- ===== TOOLBAR ===== -->
+<div id="toolbar">
+    <button class="btn" id="btn-new">New</button>
+    <button class="btn" id="btn-save">Save</button>
+    <button class="btn" id="btn-load">Load</button>
+    <button class="btn" id="btn-run">Run</button>
+    <button class="btn" id="btn-save-as">Save As</button>
+    <button class="btn" id="btn-export">Export</button>
+</div>
+
+<!-- ===== MAIN LAYOUT ===== -->
+<div id="main-layout">
+
+    <!-- LEFT PANEL: Toolbox + WorkflowListPanel -->
+    <div id="left-panel">
+        <div id="toolbox">
+            <button class="toolbox-btn" draggable="true" data-block-type="HTTPBlock">HTTPBlock</button>
+            <button class="toolbox-btn" draggable="true" data-block-type="LLMBlock">LLMBlock</button>
+            <button class="toolbox-btn" draggable="true" data-block-type="PythonScriptBlock">PythonBlock</button>
+            <button class="toolbox-btn" draggable="true" data-block-type="AgentBlock">AgentBlock</button>
+        </div>
+        <div id="workflow-list-panel"></div>
+    </div>
+
+    <!-- CANVAS -->
+    <div id="canvas-wrapper">
+        <div id="canvas">
+            <svg id="svg-layer" width="100%" height="100%">
+                <path id="preview-line" d=""/>
+            </svg>
+            <div id="canvas-hint">CANVAS</div>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL: Block Config -->
+    <div id="config-panel">
+        <div id="config-header">Block Config</div>
+        <div id="config-body">
+            <div class="no-selection">Click a block to configure it.</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ===== MODAL ===== -->
+<div id="modal-overlay">
+    <div id="modal-box">
+        <div id="modal-title"></div>
+        <input id="modal-input" type="text" autocomplete="off"/>
+        <div id="modal-body"></div>
+        <div class="modal-buttons" id="modal-buttons"></div>
+    </div>
+</div>
+
+<!-- JS — ES modules, one file per UML class -->
+<script type="module" src="{% static 'js/main.js' %}"></script>
+
 </body>
 </html>

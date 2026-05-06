@@ -1,0 +1,138 @@
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "demo",
+  "blocks": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "type": "LLMBlock",
+      "name": "Mon LLM",
+      "config": {
+        "api_url": "https://generative-eu.engine.capgemini.com/api/v1",
+        "model_name": "gpt-4o",
+        "temperature": 0.7,
+        "api_key_env_var": "GENAI_API_KEY"
+      },
+      "input_ports": [],
+      "output_ports": [
+        {
+          "id": "11111111-1111-1111-1111-111111111112",
+          "name": "llm_output",
+          "direction": "output",
+          "data_type": "llm",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222221",
+      "type": "HTTPBlock",
+      "name": "API Blague",
+      "config": {
+        "method": "GET",
+        "url": "https://official-joke-api.appspot.com/random_joke",
+        "headers": {},
+        "body": {}
+      },
+      "input_ports": [
+        {
+          "id": "22222222-2222-2222-2222-222222222222",
+          "name": "http_input",
+          "direction": "input",
+          "data_type": "any",
+          "required": false
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "22222222-2222-2222-2222-222222222223",
+          "name": "http_output",
+          "direction": "output",
+          "data_type": "dict",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "33333333-3333-3333-3333-333333333331",
+      "type": "PythonScriptBlock",
+      "name": "Formateur",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(http_data):\n    setup = http_data.get('setup', '')\n    punchline = http_data.get('punchline', '')\n    return f'Blague : {setup}\\n=> {punchline}'",
+        "detected_inputs": ["http_data"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {
+          "id": "33333333-3333-3333-3333-333333333332",
+          "name": "http_data",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "33333333-3333-3333-3333-333333333333",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "44444444-4444-4444-4444-444444444441",
+      "type": "AgentBlock",
+      "name": "Agent Principal",
+      "config": {
+        "system_prompt": "",
+        "user_prompt": "Explique pourquoi cette blague est drôle.",
+        "memory_enabled": false,
+        "llm_block_id": "11111111-1111-1111-1111-111111111111",
+        "tool_block_ids": []
+      },
+      "input_ports": [
+        {
+          "id": "44444444-4444-4444-4444-444444444442",
+          "name": "llm_input",
+          "direction": "input",
+          "data_type": "llm",
+          "required": true
+        },
+        {
+          "id": "44444444-4444-4444-4444-444444444443",
+          "name": "tool_input",
+          "direction": "input",
+          "data_type": "tool",
+          "required": false
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "44444444-4444-4444-4444-444444444444",
+          "name": "agent_output",
+          "direction": "output",
+          "data_type": "str",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "cccccccc-cccc-cccc-cccc-cccccccccc01",
+      "source_block_id": "11111111-1111-1111-1111-111111111111",
+      "source_port_id": "11111111-1111-1111-1111-111111111112",
+      "target_block_id": "44444444-4444-4444-4444-444444444441",
+      "target_port_id": "44444444-4444-4444-4444-444444444442"
+    },
+    {
+      "id": "cccccccc-cccc-cccc-cccc-cccccccccc02",
+      "source_block_id": "22222222-2222-2222-2222-222222222221",
+      "source_port_id": "22222222-2222-2222-2222-222222222223",
+      "target_block_id": "33333333-3333-3333-3333-333333333331",
+      "target_port_id": "33333333-3333-3333-3333-333333333332"
+    }
+  ]
+}
