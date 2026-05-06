@@ -1,0 +1,217 @@
+{
+  "id": "aabbccdd-0001-0002-0003-aabbccdd0004",
+  "name": "veille_tech",
+  "blocks": [
+    {
+      "id": "llm-00000000-0000-0000-0000-000000000001",
+      "type": "LLMBlock",
+      "name": "Claude Haiku",
+      "config": {
+        "api_url": "https://openai.generative-eu.engine.capgemini.com/v1",
+        "model_name": "anthropic.claude-3-haiku-20240307-v1:0",
+        "temperature": 0.7,
+        "api_key_env_var": "GENAI_API_KEY"
+      },
+      "input_ports": [],
+      "output_ports": [
+        {
+          "id": "llm-00000000-0000-0000-0000-000000000002",
+          "name": "llm_output",
+          "direction": "output",
+          "data_type": "llm",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "http-0000-0000-0000-0000-000000000010",
+      "type": "HTTPBlock",
+      "name": "GitHub Python Stars",
+      "config": {
+        "method": "GET",
+        "url": "https://api.github.com/search/repositories?q=language:python&sort=stars&order=desc&per_page=5",
+        "headers": { "Accept": "application/vnd.github.v3+json" },
+        "body": {}
+      },
+      "input_ports": [
+        {
+          "id": "http-0000-0000-0000-0000-000000000011",
+          "name": "http_input",
+          "direction": "input",
+          "data_type": "any",
+          "required": false
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "http-0000-0000-0000-0000-000000000012",
+          "name": "http_output",
+          "direction": "output",
+          "data_type": "dict",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "http-0000-0000-0000-0000-000000000020",
+      "type": "HTTPBlock",
+      "name": "Blague Outil",
+      "config": {
+        "method": "GET",
+        "url": "https://official-joke-api.appspot.com/random_joke",
+        "headers": {},
+        "body": {}
+      },
+      "input_ports": [
+        {
+          "id": "http-0000-0000-0000-0000-000000000021",
+          "name": "http_input",
+          "direction": "input",
+          "data_type": "any",
+          "required": false
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "http-0000-0000-0000-0000-000000000022",
+          "name": "http_output",
+          "direction": "output",
+          "data_type": "dict",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "script-000-0000-0000-0000-000000000030",
+      "type": "PythonScriptBlock",
+      "name": "Formateur Repos",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(github_data):\n    items = github_data.get('items', [])\n    lines = ['=== Top 5 GitHub Python Repos ===']\n    for i, repo in enumerate(items[:5], 1):\n        name = repo.get('full_name', 'unknown')\n        stars = repo.get('stargazers_count', 0)\n        desc = (repo.get('description') or '')[:80]\n        lines.append(f'{i}. {name} — {stars:,} stars')\n        if desc:\n            lines.append(f'   {desc}')\n    return '\\n'.join(lines)",
+        "detected_inputs": ["github_data"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {
+          "id": "script-000-0000-0000-0000-000000000031",
+          "name": "github_data",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "script-000-0000-0000-0000-000000000032",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "agent-000-0000-0000-0000-000000000040",
+      "type": "AgentBlock",
+      "name": "Agent Analyste",
+      "config": {
+        "system_prompt": "You are a tech analyst. You have access to a joke tool. Be concise.",
+        "user_prompt": "Get a joke using your tool and tell me why it is funny in 2 sentences.",
+        "memory_enabled": false,
+        "llm_block_id": "llm-00000000-0000-0000-0000-000000000001",
+        "tool_block_ids": ["http-0000-0000-0000-0000-000000000020"]
+      },
+      "input_ports": [
+        {
+          "id": "agent-000-0000-0000-0000-000000000041",
+          "name": "llm_input",
+          "direction": "input",
+          "data_type": "llm",
+          "required": true
+        },
+        {
+          "id": "agent-000-0000-0000-0000-000000000042",
+          "name": "tool_input",
+          "direction": "input",
+          "data_type": "tool",
+          "required": false
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "agent-000-0000-0000-0000-000000000043",
+          "name": "agent_output",
+          "direction": "output",
+          "data_type": "str",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "script-000-0000-0000-0000-000000000050",
+      "type": "PythonScriptBlock",
+      "name": "Rapport Final",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(repos_text, analyse):\n    from datetime import datetime\n    import os\n    now = datetime.now().strftime('%d/%m/%Y %H:%M')\n    sep = '=' * 60\n    thin = '-' * 60\n    report = '\\n'.join([\n        sep,\n        '  RAPPORT VEILLE TECH',\n        f'  Généré le {now}',\n        sep,\n        '',\n        repos_text,\n        '',\n        thin,\n        '  ANALYSE DE L\\'AGENT',\n        thin,\n        '',\n        analyse,\n        '',\n        sep,\n    ])\n    filename = f'workflows/rapport_{datetime.now().strftime(\"%Y%m%d_%H%M%S\")}.txt'\n    os.makedirs('workflows', exist_ok=True)\n    with open(filename, 'w', encoding='utf-8') as f:\n        f.write(report)\n    return f'Rapport écrit dans {filename}\\n\\n' + report",
+        "detected_inputs": ["repos_text", "analyse"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {
+          "id": "script-000-0000-0000-0000-000000000051",
+          "name": "repos_text",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        },
+        {
+          "id": "script-000-0000-0000-0000-000000000052",
+          "name": "analyse",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "script-000-0000-0000-0000-000000000053",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-0000-0000-0000-0000-000000000001",
+      "source_block_id": "llm-00000000-0000-0000-0000-000000000001",
+      "source_port_id": "llm-00000000-0000-0000-0000-000000000002",
+      "target_block_id": "agent-000-0000-0000-0000-000000000040",
+      "target_port_id": "agent-000-0000-0000-0000-000000000041"
+    },
+    {
+      "id": "conn-0000-0000-0000-0000-000000000002",
+      "source_block_id": "http-0000-0000-0000-0000-000000000010",
+      "source_port_id": "http-0000-0000-0000-0000-000000000012",
+      "target_block_id": "script-000-0000-0000-0000-000000000030",
+      "target_port_id": "script-000-0000-0000-0000-000000000031"
+    },
+    {
+      "id": "conn-0000-0000-0000-0000-000000000003",
+      "source_block_id": "script-000-0000-0000-0000-000000000030",
+      "source_port_id": "script-000-0000-0000-0000-000000000032",
+      "target_block_id": "script-000-0000-0000-0000-000000000050",
+      "target_port_id": "script-000-0000-0000-0000-000000000051"
+    },
+    {
+      "id": "conn-0000-0000-0000-0000-000000000004",
+      "source_block_id": "agent-000-0000-0000-0000-000000000040",
+      "source_port_id": "agent-000-0000-0000-0000-000000000043",
+      "target_block_id": "script-000-0000-0000-0000-000000000050",
+      "target_port_id": "script-000-0000-0000-0000-000000000052"
+    }
+  ]
+}
