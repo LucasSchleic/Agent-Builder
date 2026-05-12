@@ -1,0 +1,202 @@
+{
+  "id": "crud-test-0001-0002-0003-0004-crudtest0005",
+  "name": "crud_test",
+  "blocks": [
+    {
+      "id": "ct-llm-0001-0000-0000-0000-000000000001",
+      "type": "LLMBlock",
+      "name": "Claude Haiku",
+      "config": {
+        "api_url": "https://openai.generative-eu.engine.capgemini.com/v1",
+        "model_name": "anthropic.claude-3-haiku-20240307-v1:0",
+        "temperature": 0.7,
+        "api_key_env_var": "GENAI_API_KEY"
+      },
+      "input_ports": [],
+      "output_ports": [
+        {"id": "ct-llm-0001-0000-0000-0000-000000000002", "name": "llm_output", "direction": "output", "data_type": "llm", "required": false}
+      ]
+    },
+    {
+      "id": "ct-http-0002-0000-0000-0000-000000000001",
+      "type": "HTTPBlock",
+      "name": "GET Article",
+      "config": {
+        "method": "GET",
+        "url": "https://jsonplaceholder.typicode.com/posts/42",
+        "headers": {},
+        "body": {}
+      },
+      "input_ports": [
+        {"id": "ct-http-0002-0000-0000-0000-000000000002", "name": "http_input", "direction": "input", "data_type": "any", "required": false}
+      ],
+      "output_ports": [
+        {"id": "ct-http-0002-0000-0000-0000-000000000003", "name": "http_output", "direction": "output", "data_type": "dict", "required": false}
+      ]
+    },
+    {
+      "id": "ct-http-0003-0000-0000-0000-000000000001",
+      "type": "HTTPBlock",
+      "name": "PUT Modifier",
+      "config": {
+        "method": "PUT",
+        "url": "https://jsonplaceholder.typicode.com/posts/42",
+        "headers": {"Content-Type": "application/json"},
+        "body": {"id": 42, "title": "Titre mis a jour par Agent Builder", "body": "Contenu modifie automatiquement.", "userId": 1}
+      },
+      "input_ports": [
+        {"id": "ct-http-0003-0000-0000-0000-000000000002", "name": "http_input", "direction": "input", "data_type": "any", "required": false}
+      ],
+      "output_ports": [
+        {"id": "ct-http-0003-0000-0000-0000-000000000003", "name": "http_output", "direction": "output", "data_type": "dict", "required": false}
+      ]
+    },
+    {
+      "id": "ct-scr-0004-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "POST Creer Article",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run():\n    import requests\n    r = requests.post('https://jsonplaceholder.typicode.com/posts', json={'title': 'Test CRUD', 'body': 'Cree par Agent Builder', 'userId': 1})\n    return r.json()",
+        "detected_inputs": [],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [],
+      "output_ports": [
+        {"id": "ct-scr-0004-0000-0000-0000-000000000002", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    },
+    {
+      "id": "ct-scr-0005-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "DELETE Supprimer",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(post_result):\n    import requests\n    pid = post_result.get('id', 1) if isinstance(post_result, dict) else 1\n    r = requests.delete('https://jsonplaceholder.typicode.com/posts/' + str(pid))\n    return 'DELETE /posts/' + str(pid) + ' -> status ' + str(r.status_code)",
+        "detected_inputs": ["post_result"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {"id": "ct-scr-0005-0000-0000-0000-000000000002", "name": "post_result", "direction": "input", "data_type": "any", "required": true}
+      ],
+      "output_ports": [
+        {"id": "ct-scr-0005-0000-0000-0000-000000000003", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    },
+    {
+      "id": "ct-scr-0006-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Synthese CRUD",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(get_result, put_result, post_result, delete_result):\n    g = get_result.get('title', '?')[:55] if isinstance(get_result, dict) else str(get_result)[:55]\n    p = put_result.get('title', '?')[:55] if isinstance(put_result, dict) else str(put_result)[:55]\n    pid = post_result.get('id', '?') if isinstance(post_result, dict) else '?'\n    lines = [\n        '=== SYNTHESE CRUD ===',\n        '',\n        '  GET    /posts/42  : ' + g,\n        '  POST   /posts     : ID=' + str(pid),\n        '  PUT    /posts/42  : ' + p,\n        '  DELETE /posts/' + str(pid) + ' : ' + str(delete_result)[:50],\n        '',\n        '4 operations testees — jsonplaceholder.typicode.com'\n    ]\n    return '\\n'.join(lines)",
+        "detected_inputs": ["get_result", "put_result", "post_result", "delete_result"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {"id": "ct-scr-0006-0000-0000-0000-000000000002", "name": "get_result",    "direction": "input", "data_type": "any", "required": true},
+        {"id": "ct-scr-0006-0000-0000-0000-000000000003", "name": "put_result",    "direction": "input", "data_type": "any", "required": true},
+        {"id": "ct-scr-0006-0000-0000-0000-000000000004", "name": "post_result",   "direction": "input", "data_type": "any", "required": true},
+        {"id": "ct-scr-0006-0000-0000-0000-000000000005", "name": "delete_result", "direction": "input", "data_type": "any", "required": true}
+      ],
+      "output_ports": [
+        {"id": "ct-scr-0006-0000-0000-0000-000000000006", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    },
+    {
+      "id": "ct-agt-0007-0000-0000-0000-000000000001",
+      "type": "AgentBlock",
+      "name": "Agent QA",
+      "config": {
+        "system_prompt": "Tu es un expert QA en API REST. Tu as acces a un outil HTTP pour interroger des endpoints. Sois precis et professionnel. Reponds en francais.",
+        "user_prompt": "Utilise ton outil HTTP pour recuperer l'article. Verifie que la reponse contient bien les champs attendus : id, userId, title, body. Redige un audit qualite en 3 points concis.",
+        "memory_enabled": false,
+        "llm_block_id": "ct-llm-0001-0000-0000-0000-000000000001",
+        "tool_block_ids": ["ct-http-0002-0000-0000-0000-000000000001"]
+      },
+      "input_ports": [
+        {"id": "ct-agt-0007-0000-0000-0000-000000000002", "name": "llm_input",  "direction": "input", "data_type": "llm",  "required": true},
+        {"id": "ct-agt-0007-0000-0000-0000-000000000003", "name": "tool_input", "direction": "input", "data_type": "tool", "required": false}
+      ],
+      "output_ports": [
+        {"id": "ct-agt-0007-0000-0000-0000-000000000004", "name": "agent_output", "direction": "output", "data_type": "str", "required": false}
+      ]
+    },
+    {
+      "id": "ct-scr-0008-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Rapport Audit",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(synthese, audit):\n    from datetime import datetime\n    import os\n    now = datetime.now().strftime('%d/%m/%Y %H:%M')\n    sep = '=' * 60\n    thin = '-' * 60\n    content = sep + '\\n  RAPPORT AUDIT CRUD\\n  Genere le ' + now + '\\n' + sep + '\\n\\n' + synthese + '\\n\\n' + thin + '\\n  AUDIT AGENT QA\\n' + thin + '\\n\\n' + audit + '\\n\\n' + sep\n    filename = 'workflows/rapport_' + datetime.now().strftime('%Y%m%d_%H%M%S') + '.txt'\n    os.makedirs('workflows', exist_ok=True)\n    with open(filename, 'w', encoding='utf-8') as f:\n        f.write(content)\n    return 'Rapport ecrit dans ' + filename + '\\n\\n' + content",
+        "detected_inputs": ["synthese", "audit"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {"id": "ct-scr-0008-0000-0000-0000-000000000002", "name": "synthese", "direction": "input", "data_type": "any", "required": true},
+        {"id": "ct-scr-0008-0000-0000-0000-000000000003", "name": "audit",    "direction": "input", "data_type": "any", "required": true}
+      ],
+      "output_ports": [
+        {"id": "ct-scr-0008-0000-0000-0000-000000000004", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ct-conn-0001",
+      "source_block_id": "ct-llm-0001-0000-0000-0000-000000000001",
+      "source_port_id": "ct-llm-0001-0000-0000-0000-000000000002",
+      "target_block_id": "ct-agt-0007-0000-0000-0000-000000000001",
+      "target_port_id": "ct-agt-0007-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "ct-conn-0002",
+      "source_block_id": "ct-http-0002-0000-0000-0000-000000000001",
+      "source_port_id": "ct-http-0002-0000-0000-0000-000000000003",
+      "target_block_id": "ct-scr-0006-0000-0000-0000-000000000001",
+      "target_port_id": "ct-scr-0006-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "ct-conn-0003",
+      "source_block_id": "ct-http-0003-0000-0000-0000-000000000001",
+      "source_port_id": "ct-http-0003-0000-0000-0000-000000000003",
+      "target_block_id": "ct-scr-0006-0000-0000-0000-000000000001",
+      "target_port_id": "ct-scr-0006-0000-0000-0000-000000000003"
+    },
+    {
+      "id": "ct-conn-0004",
+      "source_block_id": "ct-scr-0004-0000-0000-0000-000000000001",
+      "source_port_id": "ct-scr-0004-0000-0000-0000-000000000002",
+      "target_block_id": "ct-scr-0005-0000-0000-0000-000000000001",
+      "target_port_id": "ct-scr-0005-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "ct-conn-0005",
+      "source_block_id": "ct-scr-0004-0000-0000-0000-000000000001",
+      "source_port_id": "ct-scr-0004-0000-0000-0000-000000000002",
+      "target_block_id": "ct-scr-0006-0000-0000-0000-000000000001",
+      "target_port_id": "ct-scr-0006-0000-0000-0000-000000000004"
+    },
+    {
+      "id": "ct-conn-0006",
+      "source_block_id": "ct-scr-0005-0000-0000-0000-000000000001",
+      "source_port_id": "ct-scr-0005-0000-0000-0000-000000000003",
+      "target_block_id": "ct-scr-0006-0000-0000-0000-000000000001",
+      "target_port_id": "ct-scr-0006-0000-0000-0000-000000000005"
+    },
+    {
+      "id": "ct-conn-0007",
+      "source_block_id": "ct-scr-0006-0000-0000-0000-000000000001",
+      "source_port_id": "ct-scr-0006-0000-0000-0000-000000000006",
+      "target_block_id": "ct-scr-0008-0000-0000-0000-000000000001",
+      "target_port_id": "ct-scr-0008-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "ct-conn-0008",
+      "source_block_id": "ct-agt-0007-0000-0000-0000-000000000001",
+      "source_port_id": "ct-agt-0007-0000-0000-0000-000000000004",
+      "target_block_id": "ct-scr-0008-0000-0000-0000-000000000001",
+      "target_port_id": "ct-scr-0008-0000-0000-0000-000000000003"
+    }
+  ]
+}

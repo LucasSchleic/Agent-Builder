@@ -1,0 +1,179 @@
+{
+  "id": "pipeline-incidents-00000000-0001",
+  "name": "pipeline_incidents",
+  "blocks": [
+    {
+      "id": "pi-llm-0001-0000-0000-0000-000000000001",
+      "type": "LLMBlock",
+      "name": "Claude Haiku",
+      "config": {
+        "api_url": "https://openai.generative-eu.engine.capgemini.com/v1",
+        "model_name": "anthropic.claude-3-haiku-20240307-v1:0",
+        "temperature": 0.7,
+        "api_key_env_var": "GENAI_API_KEY"
+      },
+      "input_ports": [],
+      "output_ports": [
+        {"id": "pi-llm-0001-0000-0000-0000-000000000002", "name": "llm_output", "direction": "output", "data_type": "llm", "required": false}
+      ]
+    },
+    {
+      "id": "pi-http-0002-0000-0000-0000-000000000001",
+      "type": "HTTPBlock",
+      "name": "Fetch Incidents",
+      "config": {
+        "method": "GET",
+        "url": "https://jsonplaceholder.typicode.com/todos?completed=false&_limit=15",
+        "headers": {},
+        "body": {}
+      },
+      "input_ports": [
+        {"id": "pi-http-0002-0000-0000-0000-000000000002", "name": "http_input", "direction": "input", "data_type": "any", "required": false}
+      ],
+      "output_ports": [
+        {"id": "pi-http-0002-0000-0000-0000-000000000003", "name": "http_output", "direction": "output", "data_type": "dict", "required": false}
+      ]
+    },
+    {
+      "id": "pi-http-0003-0000-0000-0000-000000000001",
+      "type": "HTTPBlock",
+      "name": "Fetch Equipe",
+      "config": {
+        "method": "GET",
+        "url": "https://jsonplaceholder.typicode.com/users",
+        "headers": {},
+        "body": {}
+      },
+      "input_ports": [
+        {"id": "pi-http-0003-0000-0000-0000-000000000002", "name": "http_input", "direction": "input", "data_type": "any", "required": false}
+      ],
+      "output_ports": [
+        {"id": "pi-http-0003-0000-0000-0000-000000000003", "name": "http_output", "direction": "output", "data_type": "dict", "required": false}
+      ]
+    },
+    {
+      "id": "pi-script-0004-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Analyseur Incidents",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(incidents, equipe):\n    user_map = {u['id']: u['name'] for u in equipe}\n    by_user = {}\n    for t in incidents:\n        uid = t['userId']\n        by_user.setdefault(uid, []).append(t['title'])\n    lines = ['=== ANALYSE INCIDENTS OUVERTS ===']\n    lines.append(f'Total incidents non résolus : {len(incidents)}')\n    lines.append('')\n    for uid, tasks in sorted(by_user.items(), key=lambda x: -len(x[1])):\n        name = user_map.get(uid, f'Utilisateur {uid}')\n        lines.append(f'  {name} — {len(tasks)} incident(s)')\n        for t in tasks[:3]:\n            lines.append(f'    · {t[:70]}')\n        if len(tasks) > 3:\n            lines.append(f'    ... et {len(tasks) - 3} autres')\n    return '\\n'.join(lines)",
+        "detected_inputs": ["incidents", "equipe"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {"id": "pi-script-0004-0000-0000-0000-000000000002", "name": "incidents", "direction": "input", "data_type": "any", "required": true},
+        {"id": "pi-script-0004-0000-0000-0000-000000000003", "name": "equipe", "direction": "input", "data_type": "any", "required": true}
+      ],
+      "output_ports": [
+        {"id": "pi-script-0004-0000-0000-0000-000000000004", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    },
+    {
+      "id": "pi-script-0005-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Poster Rapport API",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(analyse):\n    import requests\n    payload = {\n        'title': 'Rapport Incidents Automatique',\n        'body': analyse,\n        'userId': 1\n    }\n    r = requests.post('https://jsonplaceholder.typicode.com/posts', json=payload)\n    data = r.json()\n    return f'POST /posts → status {r.status_code} — ID attribué : {data.get(\"id\")}'",
+        "detected_inputs": ["analyse"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {"id": "pi-script-0005-0000-0000-0000-000000000002", "name": "analyse", "direction": "input", "data_type": "any", "required": true}
+      ],
+      "output_ports": [
+        {"id": "pi-script-0005-0000-0000-0000-000000000003", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    },
+    {
+      "id": "pi-agent-0006-0000-0000-0000-000000000001",
+      "type": "AgentBlock",
+      "name": "Agent Recommandations",
+      "config": {
+        "system_prompt": "Tu es un responsable IT. Tu as accès à la liste des membres de l'équipe via ton outil. Sois concis et orienté action. Réponds en français.",
+        "user_prompt": "Consulte la liste des membres de l'équipe via ton outil. Donne 3 recommandations concrètes pour répartir la charge des incidents de manière équilibrée.",
+        "memory_enabled": false,
+        "llm_block_id": "pi-llm-0001-0000-0000-0000-000000000001",
+        "tool_block_ids": ["pi-http-0003-0000-0000-0000-000000000001"]
+      },
+      "input_ports": [
+        {"id": "pi-agent-0006-0000-0000-0000-000000000002", "name": "llm_input", "direction": "input", "data_type": "llm", "required": true},
+        {"id": "pi-agent-0006-0000-0000-0000-000000000003", "name": "tool_input", "direction": "input", "data_type": "tool", "required": false}
+      ],
+      "output_ports": [
+        {"id": "pi-agent-0006-0000-0000-0000-000000000004", "name": "agent_output", "direction": "output", "data_type": "str", "required": false}
+      ]
+    },
+    {
+      "id": "pi-script-0007-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Rapport Final",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(analyse, recommandations, rapport_api):\n    from datetime import datetime\n    import os\n    now = datetime.now().strftime('%d/%m/%Y %H:%M')\n    sep = '=' * 60\n    thin = '-' * 60\n    report = '\\n'.join([\n        sep,\n        '  RAPPORT PIPELINE INCIDENTS',\n        f'  Généré le {now}',\n        sep,\n        '',\n        analyse,\n        '',\n        thin,\n        '  RECOMMANDATIONS DE L\\'AGENT',\n        thin,\n        '',\n        recommandations,\n        '',\n        thin,\n        '  STATUT PUBLICATION API',\n        thin,\n        '',\n        rapport_api,\n        '',\n        sep,\n    ])\n    filename = f'workflows/rapport_{datetime.now().strftime(\"%Y%m%d_%H%M%S\")}.txt'\n    os.makedirs('workflows', exist_ok=True)\n    with open(filename, 'w', encoding='utf-8') as f:\n        f.write(report)\n    return f'Rapport écrit dans {filename}\\n\\n' + report",
+        "detected_inputs": ["analyse", "recommandations", "rapport_api"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {"id": "pi-script-0007-0000-0000-0000-000000000002", "name": "analyse", "direction": "input", "data_type": "any", "required": true},
+        {"id": "pi-script-0007-0000-0000-0000-000000000003", "name": "recommandations", "direction": "input", "data_type": "any", "required": true},
+        {"id": "pi-script-0007-0000-0000-0000-000000000004", "name": "rapport_api", "direction": "input", "data_type": "any", "required": true}
+      ],
+      "output_ports": [
+        {"id": "pi-script-0007-0000-0000-0000-000000000005", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "pi-conn-0001",
+      "source_block_id": "pi-http-0002-0000-0000-0000-000000000001",
+      "source_port_id": "pi-http-0002-0000-0000-0000-000000000003",
+      "target_block_id": "pi-script-0004-0000-0000-0000-000000000001",
+      "target_port_id": "pi-script-0004-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "pi-conn-0002",
+      "source_block_id": "pi-http-0003-0000-0000-0000-000000000001",
+      "source_port_id": "pi-http-0003-0000-0000-0000-000000000003",
+      "target_block_id": "pi-script-0004-0000-0000-0000-000000000001",
+      "target_port_id": "pi-script-0004-0000-0000-0000-000000000003"
+    },
+    {
+      "id": "pi-conn-0003",
+      "source_block_id": "pi-script-0004-0000-0000-0000-000000000001",
+      "source_port_id": "pi-script-0004-0000-0000-0000-000000000004",
+      "target_block_id": "pi-script-0005-0000-0000-0000-000000000001",
+      "target_port_id": "pi-script-0005-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "pi-conn-0004",
+      "source_block_id": "pi-llm-0001-0000-0000-0000-000000000001",
+      "source_port_id": "pi-llm-0001-0000-0000-0000-000000000002",
+      "target_block_id": "pi-agent-0006-0000-0000-0000-000000000001",
+      "target_port_id": "pi-agent-0006-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "pi-conn-0005",
+      "source_block_id": "pi-script-0004-0000-0000-0000-000000000001",
+      "source_port_id": "pi-script-0004-0000-0000-0000-000000000004",
+      "target_block_id": "pi-script-0007-0000-0000-0000-000000000001",
+      "target_port_id": "pi-script-0007-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "pi-conn-0006",
+      "source_block_id": "pi-agent-0006-0000-0000-0000-000000000001",
+      "source_port_id": "pi-agent-0006-0000-0000-0000-000000000004",
+      "target_block_id": "pi-script-0007-0000-0000-0000-000000000001",
+      "target_port_id": "pi-script-0007-0000-0000-0000-000000000003"
+    },
+    {
+      "id": "pi-conn-0007",
+      "source_block_id": "pi-script-0005-0000-0000-0000-000000000001",
+      "source_port_id": "pi-script-0005-0000-0000-0000-000000000003",
+      "target_block_id": "pi-script-0007-0000-0000-0000-000000000001",
+      "target_port_id": "pi-script-0007-0000-0000-0000-000000000004"
+    }
+  ]
+}
