@@ -37,3 +37,6 @@ Thumbs.db
 
 # Claude Code — settings.json contains sensitive info
 .claude/settings.json
+
+# Generated workflow outputs — runtime artifacts, not source
+workflows/rapport_*.txt
