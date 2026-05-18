@@ -19,6 +19,7 @@ class WorkflowExecutor:
     """
 
     def __init__(self):
+        """Initialize the executor with no active workflow."""
         # Stored during execute_workflow so prepare_inputs can access connections
         # without needing workflow passed as an extra argument.
         self._workflow: Workflow = None

@@ -46,6 +46,7 @@ class LLMBlockCreator(BlockCreator):
     """Creates LLMBlock instances with default configuration."""
 
     def _create_block(self) -> LLMBlock:
+        """Return a new LLMBlock with factory defaults."""
         return LLMBlock()
 
 
@@ -53,6 +54,7 @@ class AgentBlockCreator(BlockCreator):
     """Creates AgentBlock instances with default configuration."""
 
     def _create_block(self) -> AgentBlock:
+        """Return a new AgentBlock with factory defaults."""
         return AgentBlock()
 
 
@@ -60,6 +62,7 @@ class HTTPBlockCreator(BlockCreator):
     """Creates HTTPBlock instances with default configuration."""
 
     def _create_block(self) -> HTTPBlock:
+        """Return a new HTTPBlock with factory defaults."""
         return HTTPBlock()
 
 
@@ -67,4 +70,5 @@ class PythonScriptBlockCreator(BlockCreator):
     """Creates PythonScriptBlock instances with default configuration."""
 
     def _create_block(self) -> PythonScriptBlock:
+        """Return a new PythonScriptBlock with factory defaults."""
         return PythonScriptBlock()

@@ -20,6 +20,7 @@ from core.services.workflow_service import WorkflowService
 
 WORKFLOWS_DIR = Path(settings.BASE_DIR) / "workflows"
 
+# Module-level singletons: one instance per process avoids repeated construction overhead.
 _service = WorkflowService()
 _executor = WorkflowExecutor()
 _export = ExportService()
