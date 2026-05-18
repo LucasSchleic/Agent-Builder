@@ -141,13 +141,11 @@ class LLMBlock(Block):
         )
 
     def generate_code_snippet(self) -> str:
-        # Variable name derived from the block name, e.g. "My LLM" → my_llm.
         var = _to_var_name(self.name)
         env_var = self.config["api_key_env_var"]
-        # !r adds quotes around string values in the f-string output.
         return (
             f"{var} = ChatOpenAI(\n"
-            f"    base_url=os.getenv('GENAI_API_URL'),\n"
+            f"    base_url={self.config['api_url']!r},\n"
             f"    model={self.config['model_name']!r},\n"
             f"    temperature={self.config['temperature']},\n"
             f"    api_key=os.getenv({env_var!r}),\n"
@@ -345,7 +343,7 @@ class HTTPBlock(Block):
             f"    )\n"
             f"    return response.json()\n\n"
             f"{var}_tool = Tool(\n"
-            f"    name={self.name!r},\n"
+            f"    name={var!r},\n"
             f"    func=block_{var},\n"
             f"    description='HTTP {method} {url}',\n"
             f")"
