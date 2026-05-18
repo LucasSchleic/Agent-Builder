@@ -1,0 +1,179 @@
+{
+  "id": "gh-pr-review-0001-0002-0003-githubpr004",
+  "name": "github_pr_review",
+  "blocks": [
+    {
+      "id": "gh-llm-0001-0000-0000-0000-000000000001",
+      "type": "LLMBlock",
+      "name": "Claude Haiku",
+      "config": {
+        "api_url": "https://openai.generative-eu.engine.capgemini.com/v1",
+        "model_name": "anthropic.claude-3-haiku-20240307-v1:0",
+        "temperature": 0.3,
+        "api_key_env_var": "GENAI_API_KEY"
+      },
+      "input_ports": [],
+      "output_ports": [
+        {"id": "gh-llm-0001-0000-0000-0000-000000000002", "name": "llm_output", "direction": "output", "data_type": "llm", "required": false}
+      ]
+    },
+    {
+      "id": "gh-http-0002-0000-0000-0000-000000000001",
+      "type": "HTTPBlock",
+      "name": "Fetch Latest PR",
+      "config": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/pallets/flask/pulls?state=open&per_page=1&sort=updated",
+        "headers": {"Accept": "application/vnd.github.v3+json"},
+        "body": {}
+      },
+      "input_ports": [
+        {"id": "gh-http-0002-0000-0000-0000-000000000002", "name": "http_input", "direction": "input", "data_type": "any", "required": false}
+      ],
+      "output_ports": [
+        {"id": "gh-http-0002-0000-0000-0000-000000000003", "name": "http_output", "direction": "output", "data_type": "dict", "required": false}
+      ]
+    },
+    {
+      "id": "gh-http-0003-0000-0000-0000-000000000001",
+      "type": "HTTPBlock",
+      "name": "Fetch Contributeurs",
+      "config": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/pallets/flask/contributors?per_page=10",
+        "headers": {"Accept": "application/vnd.github.v3+json"},
+        "body": {}
+      },
+      "input_ports": [
+        {"id": "gh-http-0003-0000-0000-0000-000000000002", "name": "http_input", "direction": "input", "data_type": "any", "required": false}
+      ],
+      "output_ports": [
+        {"id": "gh-http-0003-0000-0000-0000-000000000003", "name": "http_output", "direction": "output", "data_type": "dict", "required": false}
+      ]
+    },
+    {
+      "id": "gh-scr-0004-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Fetch Diff",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(pr_list):\n    import requests\n    if not pr_list or not isinstance(pr_list, list) or len(pr_list) == 0:\n        return {'error': 'Aucune PR trouvee', 'pr_info': {}, 'files': []}\n    pr = pr_list[0]\n    pr_number = pr.get('number')\n    repo_url = pr.get('base', {}).get('repo', {}).get('full_name', 'pallets/flask')\n    files_url = 'https://api.github.com/repos/' + repo_url + '/pulls/' + str(pr_number) + '/files'\n    resp = requests.get(files_url, headers={'Accept': 'application/vnd.github.v3+json'})\n    files = resp.json() if resp.status_code == 200 else []\n    pr_info = {\n        'number': pr_number,\n        'title': pr.get('title', ''),\n        'body': (pr.get('body') or '')[:500],\n        'author': pr.get('user', {}).get('login', ''),\n        'state': pr.get('state', ''),\n        'changed_files': pr.get('changed_files', len(files) if isinstance(files, list) else 0),\n        'additions': pr.get('additions', 0),\n        'deletions': pr.get('deletions', 0),\n        'repo': repo_url,\n        'url': pr.get('html_url', ''),\n    }\n    parsed_files = []\n    for f in (files if isinstance(files, list) else [])[:5]:\n        parsed_files.append({\n            'filename': f.get('filename', ''),\n            'status': f.get('status', ''),\n            'additions': f.get('additions', 0),\n            'deletions': f.get('deletions', 0),\n            'patch': (f.get('patch') or '')[:800],\n        })\n    return {'pr_info': pr_info, 'files': parsed_files}",
+        "detected_inputs": ["pr_list"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {"id": "gh-scr-0004-0000-0000-0000-000000000002", "name": "pr_list", "direction": "input", "data_type": "any", "required": true}
+      ],
+      "output_ports": [
+        {"id": "gh-scr-0004-0000-0000-0000-000000000003", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    },
+    {
+      "id": "gh-agt-0005-0000-0000-0000-000000000001",
+      "type": "AgentBlock",
+      "name": "Agent Sante Repo",
+      "config": {
+        "system_prompt": "Tu es un expert en gestion de projets open source. Tu as acces a un outil pour consulter les donnees du repo GitHub. Sois concis et factuel. Reponds en francais.",
+        "user_prompt": "Consulte les contributeurs du repo via ton outil. Donne 2 observations concretes sur la sante du projet : diversite des contributeurs et niveau d'activite. Sois bref.",
+        "memory_enabled": false,
+        "llm_block_id": "gh-llm-0001-0000-0000-0000-000000000001",
+        "tool_block_ids": ["gh-http-0003-0000-0000-0000-000000000001"]
+      },
+      "input_ports": [
+        {"id": "gh-agt-0005-0000-0000-0000-000000000002", "name": "llm_input",  "direction": "input", "data_type": "llm",  "required": true},
+        {"id": "gh-agt-0005-0000-0000-0000-000000000003", "name": "tool_input", "direction": "input", "data_type": "tool", "required": false}
+      ],
+      "output_ports": [
+        {"id": "gh-agt-0005-0000-0000-0000-000000000004", "name": "agent_output", "direction": "output", "data_type": "str", "required": false}
+      ]
+    },
+    {
+      "id": "gh-scr-0006-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Reviewer LLM",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(llm, pr_data):\n    if isinstance(pr_data, dict) and pr_data.get('error'):\n        return 'Erreur : ' + pr_data['error']\n    pr = pr_data.get('pr_info', {}) if isinstance(pr_data, dict) else {}\n    files = pr_data.get('files', []) if isinstance(pr_data, dict) else []\n    lines = [\n        'Tu es un expert en revue de code Python. Analyse cette Pull Request GitHub.',\n        '',\n        'PR #' + str(pr.get('number', '?')) + ' : ' + str(pr.get('title', '')),\n        'Auteur : ' + str(pr.get('author', '')) + ' | Repo : ' + str(pr.get('repo', '')),\n        'Changements : +' + str(pr.get('additions', 0)) + ' / -' + str(pr.get('deletions', 0)) + ' sur ' + str(pr.get('changed_files', 0)) + ' fichier(s)',\n        '',\n    ]\n    if pr.get('body'):\n        lines.append('Description :')\n        lines.append(str(pr['body'])[:400])\n        lines.append('')\n    for f in files:\n        lines.append('--- ' + f.get('filename', '?') + ' [' + f.get('status', '') + '] +' + str(f.get('additions', 0)) + '/-' + str(f.get('deletions', 0)) + ' ---')\n        if f.get('patch'):\n            lines.append(f.get('patch', '')[:600])\n        lines.append('')\n    lines += [\n        '===',\n        'Redige une revue de code concise en francais :',\n        '1. RESUME : ce que fait cette PR (2-3 phrases)',\n        '2. POINTS POSITIFS : ce qui est bien fait',\n        '3. A SURVEILLER : bugs potentiels, risques, suggestions',\n        'Sois precis et actionnable.',\n    ]\n    prompt = '\\n'.join(lines)\n    response = llm.invoke(prompt)\n    return response.content if hasattr(response, 'content') else str(response)",
+        "detected_inputs": ["llm", "pr_data"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {"id": "gh-scr-0006-0000-0000-0000-000000000002", "name": "llm",     "direction": "input", "data_type": "any", "required": true},
+        {"id": "gh-scr-0006-0000-0000-0000-000000000003", "name": "pr_data", "direction": "input", "data_type": "any", "required": true}
+      ],
+      "output_ports": [
+        {"id": "gh-scr-0006-0000-0000-0000-000000000004", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    },
+    {
+      "id": "gh-scr-0007-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Rapport Review",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(pr_data, review, sante_repo):\n    from datetime import datetime\n    import os\n    pr = pr_data.get('pr_info', {}) if isinstance(pr_data, dict) else {}\n    now = datetime.now().strftime('%d/%m/%Y %H:%M')\n    sep = '=' * 60\n    thin = '-' * 60\n    header = sep + '\\n  CODE REVIEW — PR #' + str(pr.get('number', '?')) + '\\n  ' + str(pr.get('title', '')) + '\\n  Repo : ' + str(pr.get('repo', '')) + '\\n  ' + str(pr.get('url', '')) + '\\n  Genere le ' + now + '\\n' + sep\n    meta = '\\nAuteur    : ' + str(pr.get('author', '')) + '\\nFichiers  : ' + str(pr.get('changed_files', '?')) + '\\nAdditions : +' + str(pr.get('additions', 0)) + '\\nDeletions : -' + str(pr.get('deletions', 0))\n    content = header + meta + '\\n\\n' + thin + '\\n  REVUE DE CODE\\n' + thin + '\\n\\n' + str(review) + '\\n\\n' + thin + '\\n  SANTE DU REPO (AGENT)\\n' + thin + '\\n\\n' + str(sante_repo) + '\\n\\n' + sep\n    filename = 'workflows/rapport_' + datetime.now().strftime('%Y%m%d_%H%M%S') + '.txt'\n    os.makedirs('workflows', exist_ok=True)\n    with open(filename, 'w', encoding='utf-8') as f:\n        f.write(content)\n    return 'Rapport ecrit dans ' + filename + '\\n\\n' + content",
+        "detected_inputs": ["pr_data", "review", "sante_repo"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {"id": "gh-scr-0007-0000-0000-0000-000000000002", "name": "pr_data",    "direction": "input", "data_type": "any", "required": true},
+        {"id": "gh-scr-0007-0000-0000-0000-000000000003", "name": "review",     "direction": "input", "data_type": "any", "required": true},
+        {"id": "gh-scr-0007-0000-0000-0000-000000000004", "name": "sante_repo", "direction": "input", "data_type": "any", "required": true}
+      ],
+      "output_ports": [
+        {"id": "gh-scr-0007-0000-0000-0000-000000000005", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "gh-conn-0001",
+      "source_block_id": "gh-llm-0001-0000-0000-0000-000000000001",
+      "source_port_id": "gh-llm-0001-0000-0000-0000-000000000002",
+      "target_block_id": "gh-agt-0005-0000-0000-0000-000000000001",
+      "target_port_id": "gh-agt-0005-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "gh-conn-0002",
+      "source_block_id": "gh-llm-0001-0000-0000-0000-000000000001",
+      "source_port_id": "gh-llm-0001-0000-0000-0000-000000000002",
+      "target_block_id": "gh-scr-0006-0000-0000-0000-000000000001",
+      "target_port_id": "gh-scr-0006-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "gh-conn-0003",
+      "source_block_id": "gh-http-0002-0000-0000-0000-000000000001",
+      "source_port_id": "gh-http-0002-0000-0000-0000-000000000003",
+      "target_block_id": "gh-scr-0004-0000-0000-0000-000000000001",
+      "target_port_id": "gh-scr-0004-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "gh-conn-0004",
+      "source_block_id": "gh-scr-0004-0000-0000-0000-000000000001",
+      "source_port_id": "gh-scr-0004-0000-0000-0000-000000000003",
+      "target_block_id": "gh-scr-0006-0000-0000-0000-000000000001",
+      "target_port_id": "gh-scr-0006-0000-0000-0000-000000000003"
+    },
+    {
+      "id": "gh-conn-0005",
+      "source_block_id": "gh-scr-0004-0000-0000-0000-000000000001",
+      "source_port_id": "gh-scr-0004-0000-0000-0000-000000000003",
+      "target_block_id": "gh-scr-0007-0000-0000-0000-000000000001",
+      "target_port_id": "gh-scr-0007-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "gh-conn-0006",
+      "source_block_id": "gh-agt-0005-0000-0000-0000-000000000001",
+      "source_port_id": "gh-agt-0005-0000-0000-0000-000000000004",
+      "target_block_id": "gh-scr-0007-0000-0000-0000-000000000001",
+      "target_port_id": "gh-scr-0007-0000-0000-0000-000000000004"
+    },
+    {
+      "id": "gh-conn-0007",
+      "source_block_id": "gh-scr-0006-0000-0000-0000-000000000001",
+      "source_port_id": "gh-scr-0006-0000-0000-0000-000000000004",
+      "target_block_id": "gh-scr-0007-0000-0000-0000-000000000001",
+      "target_port_id": "gh-scr-0007-0000-0000-0000-000000000003"
+    }
+  ]
+}
