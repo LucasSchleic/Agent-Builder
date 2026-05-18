@@ -1,0 +1,71 @@
+{
+  "id": "email-send-0001-0002-0003-emailsend004",
+  "name": "email_send",
+  "blocks": [
+    {
+      "id": "ems-scr-0001-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Lire Brouillons",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run():\n    import os\n    folder = 'email_drafts'\n    if not os.path.exists(folder):\n        return {'error': 'Dossier email_drafts introuvable — lancez d\\'abord email_draft.', 'approved': [], 'file': ''}\n    files = sorted([f for f in os.listdir(folder) if f.startswith('brouillons_') and f.endswith('.txt')])\n    if not files:\n        return {'error': 'Aucun fichier de brouillons dans email_drafts/ — lancez d\\'abord email_draft.', 'approved': [], 'file': ''}\n    latest = os.path.join(folder, files[-1])\n    with open(latest, 'r', encoding='utf-8') as f:\n        content = f.read()\n    approved = []\n    blocks = content.split('--- BROUILLON ')[1:]\n    for block in blocks:\n        data = {'to': '', 'subject': '', 'body': '', 'approved': False}\n        in_body = False\n        body_lines = []\n        for line in block.strip().split('\\n'):\n            if line.startswith('TO: '):\n                data['to'] = line[4:].strip()\n            elif line.startswith('SUBJECT: '):\n                data['subject'] = line[9:].strip()\n            elif line.strip() == 'STATUS: APPROUVE':\n                data['approved'] = True\n            elif line.strip() == 'BODY:':\n                in_body = True\n            elif in_body and not line.startswith('---'):\n                body_lines.append(line)\n        data['body'] = '\\n'.join(body_lines).strip()\n        if data['approved'] and data['to'] and data['body']:\n            approved.append({'to': data['to'], 'subject': data['subject'], 'body': data['body']})\n    return {'file': latest, 'approved': approved}",
+        "detected_inputs": [],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [],
+      "output_ports": [
+        {"id": "ems-scr-0001-0000-0000-0000-000000000002", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    },
+    {
+      "id": "ems-scr-0002-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Envoyer Mails Approuves",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(brouillons):\n    import smtplib, os\n    from email.mime.text import MIMEText\n    if isinstance(brouillons, dict) and brouillons.get('error'):\n        return 'Erreur : ' + brouillons['error']\n    approved = brouillons.get('approved', []) if isinstance(brouillons, dict) else []\n    fname    = brouillons.get('file', 'email_drafts/') if isinstance(brouillons, dict) else ''\n    if not approved:\n        return 'Aucune reponse approuvee.\\nOuvrez ' + fname + ' et changez EN_ATTENTE en APPROUVE, puis relancez.'\n    user = os.getenv('GMAIL_USER', '')\n    pwd  = os.getenv('GMAIL_APP_PASSWORD', '')\n    if not user or not pwd:\n        return 'Credentials manquants — ajouter GMAIL_USER et GMAIL_APP_PASSWORD dans .env'\n    sent, errors = [], []\n    try:\n        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)\n        server.login(user, pwd)\n        for mail in approved:\n            try:\n                msg = MIMEText(mail['body'], 'plain', 'utf-8')\n                msg['From']    = user\n                msg['To']      = mail['to']\n                msg['Subject'] = mail['subject']\n                server.sendmail(user, mail['to'], msg.as_string())\n                sent.append(mail['to'])\n            except Exception as e:\n                errors.append(mail['to'] + ' : ' + str(e))\n        server.quit()\n    except Exception as e:\n        return 'Erreur SMTP : ' + str(e)\n    result = str(len(sent)) + ' mail(s) envoye(s)'\n    if sent:\n        result += '\\n' + '\\n'.join('  -> ' + s for s in sent)\n    if errors:\n        result += '\\n\\nErreurs :\\n' + '\\n'.join('  ' + e for e in errors)\n    return result",
+        "detected_inputs": ["brouillons"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {"id": "ems-scr-0002-0000-0000-0000-000000000002", "name": "brouillons", "direction": "input", "data_type": "any", "required": true}
+      ],
+      "output_ports": [
+        {"id": "ems-scr-0002-0000-0000-0000-000000000003", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    },
+    {
+      "id": "ems-scr-0003-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Rapport Envoi",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(envoi_result):\n    from datetime import datetime\n    import os\n    os.makedirs('email_drafts', exist_ok=True)\n    now = datetime.now().strftime('%d/%m/%Y %H:%M')\n    sep = '=' * 60\n    content = sep + '\\n  RAPPORT ENVOI MAILS\\n  Genere le ' + now + '\\n' + sep + '\\n\\n' + str(envoi_result) + '\\n\\n' + sep\n    filename = 'email_drafts/rapport_envoi_' + datetime.now().strftime('%Y%m%d_%H%M%S') + '.txt'\n    with open(filename, 'w', encoding='utf-8') as f:\n        f.write(content)\n    return 'Rapport ecrit dans ' + filename + '\\n\\n' + content",
+        "detected_inputs": ["envoi_result"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        {"id": "ems-scr-0003-0000-0000-0000-000000000002", "name": "envoi_result", "direction": "input", "data_type": "any", "required": true}
+      ],
+      "output_ports": [
+        {"id": "ems-scr-0003-0000-0000-0000-000000000003", "name": "output", "direction": "output", "data_type": "any", "required": false}
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ems-conn-0001",
+      "source_block_id": "ems-scr-0001-0000-0000-0000-000000000001",
+      "source_port_id": "ems-scr-0001-0000-0000-0000-000000000002",
+      "target_block_id": "ems-scr-0002-0000-0000-0000-000000000001",
+      "target_port_id": "ems-scr-0002-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "ems-conn-0002",
+      "source_block_id": "ems-scr-0002-0000-0000-0000-000000000001",
+      "source_port_id": "ems-scr-0002-0000-0000-0000-000000000003",
+      "target_block_id": "ems-scr-0003-0000-0000-0000-000000000001",
+      "target_port_id": "ems-scr-0003-0000-0000-0000-000000000002"
+    }
+  ]
+}
