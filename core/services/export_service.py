@@ -1,4 +1,5 @@
 import os
+import re
 from typing import List
 
 from core.domain.block import AgentBlock, Block, HTTPBlock, LLMBlock, PythonScriptBlock
@@ -55,8 +56,7 @@ class ExportService:
 
     def _collect_imports(self, blocks: List[Block]) -> List[str]:
         """Return the import lines needed based on which block types are present."""
-        # os and load_dotenv are always required: env vars are used by every block type.
-        imports = ["import os", "from dotenv import load_dotenv"]
+        imports = []
 
         # LLMBlock uses ChatOpenAI from the langchain_openai package.
         if any(isinstance(b, LLMBlock) for b in blocks):
@@ -124,6 +124,53 @@ class ExportService:
     # HTTPBlock standalone detection
     # ------------------------------------------------------------------
 
+    def _output_var(self, block: Block, workflow: Workflow = None) -> str:
+        """Return the Python expression that holds a block's output value.
+
+        Used to build call arguments when a PythonScriptBlock reads another
+        block's output via a workflow connection.
+        """
+        var = _to_var(block.name)
+        if isinstance(block, LLMBlock):
+            return var  # LLMBlock exports itself as the ChatOpenAI object
+        if isinstance(block, AgentBlock):
+            return f"result_{var}['messages'][-1].content"
+        if isinstance(block, HTTPBlock):
+            # Tool blocks export as block_{var}() function — call it directly.
+            # Standalone blocks export as result_{var} response object — use .json().
+            if workflow and self._is_tool_block(block.id, workflow):
+                return f"block_{var}()"
+            return f"result_{var}.json()"
+        return f"result_{var}"  # PythonScriptBlock and any future types
+
+    def _build_port_map(self, workflow: Workflow) -> dict:
+        """Return {target_port_id: source_block} for every connection in the workflow."""
+        mapping: dict = {}
+        for conn in workflow.connections:
+            try:
+                mapping[conn.target_port_id] = workflow.get_block(conn.source_block_id)
+            except ValueError:
+                pass
+        return mapping
+
+    def _resolve_env_vars(self, code: str) -> str:
+        """Replace every os.getenv('VAR') call with its resolved value at export time.
+
+        This makes the exported script fully standalone — no .env file needed.
+        Handles both os.getenv('VAR') and os.getenv('VAR', 'default') forms,
+        with single or double quotes.
+        """
+        def replacer(match: re.Match) -> str:
+            var_name = match.group(1)
+            value = os.getenv(var_name, "")
+            return repr(value)
+
+        return re.sub(
+            r'os\.getenv\(\s*[\'"]([^\'"]+)[\'"]\s*(?:,\s*[\'"][^\'"]*[\'"]\s*)?\)',
+            replacer,
+            code,
+        )
+
     def _is_tool_block(self, block_id: str, workflow: Workflow) -> bool:
         """Return True if the block is referenced as a tool by any AgentBlock.
 
@@ -151,6 +198,7 @@ class ExportService:
         """
         blocks = self.topological_sort(workflow)
         imports = self._collect_imports(blocks)
+        port_map = self._build_port_map(workflow)
 
         # Start with the file header.
         lines: List[str] = [
@@ -161,28 +209,47 @@ class ExportService:
             "",
         ]
 
-        # Add all imports, then load_dotenv() which reads the .env file at runtime.
         lines.extend(imports)
-        lines.append("")
-        lines.append("load_dotenv()")
         lines.append("")
 
         # One section per block, in dependency order.
         for block in blocks:
             # Section header comment identifies the block by name and type.
             lines.append(f"# --- Bloc : {block.name} ({block.__class__.__name__}) ---")
-            # AgentBlock needs extra connector lines before its own snippet.
+
             if isinstance(block, AgentBlock):
+                # AgentBlock needs llm/tools aliases before the snippet.
                 lines.extend(self._agent_glue_lines(block, workflow))
-            # HTTPBlock has two export modes depending on whether it feeds an agent.
-            if isinstance(block, HTTPBlock) and not self._is_tool_block(block.id, workflow):
-                lines.append(block.generate_standalone_snippet())
-            else:
                 lines.append(block.generate_code_snippet())
+
+            elif isinstance(block, HTTPBlock) and not self._is_tool_block(block.id, workflow):
+                # Standalone HTTP block: direct call, no Tool wrapper.
+                lines.append(block.generate_standalone_snippet())
+
+            elif isinstance(block, PythonScriptBlock):
+                var = _to_var(block.name)
+                func_name = block.config.get("function_name", "run")
+                unique_func = f"run_{var}"
+                # Rename def run( → def run_<var>( to avoid collisions between blocks.
+                snippet = block.generate_code_snippet().replace(
+                    f"def {func_name}(", f"def {unique_func}(", 1
+                )
+                lines.append(snippet)
+                # Build the positional call arguments from workflow connections.
+                call_args = [
+                    self._output_var(port_map[port.id], workflow) if port.id in port_map else "None"
+                    for port in block.input_ports
+                ]
+                lines.append(f"result_{var} = {unique_func}({', '.join(call_args)})")
+
+            else:
+                # LLMBlock, HTTPBlock-as-tool, and any future block types.
+                lines.append(block.generate_code_snippet())
+
             # Blank line between sections for readability.
             lines.append("")
 
-        return "\n".join(lines)
+        return self._resolve_env_vars("\n".join(lines))
 
     def export_to_file(self, workflow: Workflow, path: str) -> None:
         """Write the generated Python script to disk.
