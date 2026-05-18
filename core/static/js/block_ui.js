@@ -47,10 +47,16 @@ export class BlockUI {
     /** Build and return the DOM element. */
     render() {
         const pos = this.state.positions[this.block.id] ?? { x: 30, y: 30 };
+        const maxPorts = Math.max(
+            (this.block.input_ports  ?? []).length,
+            (this.block.output_ports ?? []).length
+        );
+        const minH = Math.max(72, 40 + 28 * maxPorts);
+
         const el = document.createElement('div');
         el.className   = 'block-ui' + (this.state.selectedBlockId === this.block.id ? ' selected' : '');
         el.dataset.blockId = this.block.id;
-        el.style.cssText   = `left:${pos.x}px;top:${pos.y}px`;
+        el.style.cssText   = `left:${pos.x}px;top:${pos.y}px;min-height:${minH}px`;
 
         el.innerHTML = `
             <div class="block-header">

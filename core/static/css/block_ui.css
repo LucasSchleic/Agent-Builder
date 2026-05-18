@@ -1,7 +1,6 @@
 .block-ui {
     position: absolute;
     min-width: 160px;
-    min-height: 72px;
     overflow: visible;
     border-radius: 9px;
     background: #16162a;
