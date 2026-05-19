@@ -41,3 +41,4 @@ Thumbs.db
 # Generated workflow outputs — runtime artifacts, not source
 workflows/rapport_*.txt
 workflows/*.py
+email_drafts/
