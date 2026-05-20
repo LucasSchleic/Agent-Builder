@@ -359,14 +359,17 @@ class HTTPBlock(Block):
         method = self.config["method"]
         url = self.config["url"]
         headers = self.config.get("headers") or {}
-        return (
+        body = self.config.get("body") or None
+        lines = (
             f"result_{var} = requests.request(\n"
             f"    {method!r},\n"
             f"    {url!r},\n"
             f"    headers={headers!r},\n"
-            f")\n"
-            f"print(result_{var}.json())"
         )
+        if body:
+            lines += f"    json={body!r},\n"
+        lines += f")\nprint(result_{var}.json())"
+        return lines
 
 
 # ---------------------------------------------------------------------------
