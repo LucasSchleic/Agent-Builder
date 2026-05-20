@@ -78,14 +78,18 @@
     padding: 6px 9px;
     outline: none;
     font-family: inherit;
-    resize: vertical;
     transition: border-color 0.15s;
 }
 .config-field input:focus,
 .config-field select:focus,
 .config-field textarea:focus { border-color: var(--accent); }
 
-.config-field textarea { min-height: 72px; font-family: monospace; font-size: 11px; }
+.config-field textarea {
+    font-family: monospace;
+    font-size: 11px;
+    resize: vertical;
+    min-height: 60px;
+}
 
 .config-field input[type="checkbox"] {
     width: auto;

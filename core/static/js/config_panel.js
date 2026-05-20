@@ -45,19 +45,19 @@ export class ConfigPanel {
                 { key: 'api_key_env_var', label: 'API Key Env Var',  type: 'text' },
             ];
             case 'AgentBlock': return [
-                { key: 'user_prompt',    label: 'User Prompt',     type: 'textarea' },
+                { key: 'user_prompt',    label: 'User Prompt',     type: 'textarea', rows: 6 },
                 { key: 'memory_enabled', label: 'Memory Enabled',  type: 'checkbox' },
                 { key: 'llm_block_id',   label: 'LLM Block ID',    type: 'text' },
             ];
             case 'HTTPBlock': return [
                 { key: 'method',  label: 'Method',         type: 'select',   options: ['GET','POST','PUT','DELETE'] },
                 { key: 'url',     label: 'URL',            type: 'text' },
-                { key: 'headers', label: 'Headers (JSON)', type: 'textarea', json: true },
-                { key: 'body',    label: 'Body (JSON)',    type: 'textarea', json: true },
+                { key: 'headers', label: 'Headers (JSON)', type: 'textarea', json: true, rows: 4 },
+                { key: 'body',    label: 'Body (JSON)',    type: 'textarea', json: true, rows: 6 },
             ];
             case 'PythonScriptBlock': return [
                 { key: 'function_name', label: 'Function Name', type: 'text' },
-                { key: 'script_code',   label: 'Script Code',   type: 'textarea' },
+                { key: 'script_code',   label: 'Script Code',   type: 'textarea', rows: 18 },
             ];
             default: return [];
         }
@@ -76,7 +76,8 @@ export class ConfigPanel {
         }
         if (f.type === 'textarea') {
             const display = f.json && typeof val === 'object' ? JSON.stringify(val, null, 2) : (val ?? '');
-            return `<div class="config-field"><label>${f.label}</label><textarea id="cf-${f.key}">${_esc(String(display))}</textarea></div>`;
+            const rows = f.rows ?? 5;
+            return `<div class="config-field"><label>${f.label}</label><textarea id="cf-${f.key}" rows="${rows}">${_esc(String(display))}</textarea></div>`;
         }
         return `<div class="config-field"><label>${f.label}</label>
                     <input type="${f.type}" id="cf-${f.key}" value="${_esc(String(val ?? ''))}">
