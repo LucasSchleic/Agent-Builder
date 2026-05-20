@@ -87,10 +87,9 @@ class TestCollectImports(unittest.TestCase):
     def setUp(self):
         self.service = ExportService()
 
-    def test_always_includes_os_and_dotenv(self):
+    def test_empty_blocks_returns_empty_list(self):
         imports = self.service._collect_imports([])
-        self.assertIn("import os", imports)
-        self.assertIn("from dotenv import load_dotenv", imports)
+        self.assertEqual(imports, [])
 
     def test_llm_block_adds_chatOpenAI(self):
         imports = self.service._collect_imports([_llm()])
@@ -133,11 +132,12 @@ class TestGeneratePython(unittest.TestCase):
         script = self.service.generate_python(wf)
         self.assertIn("my_workflow", script)
 
-    def test_contains_load_dotenv(self):
+    def test_env_vars_resolved_in_generated_script(self):
         wf = Workflow(name="w")
         wf.add_block(_llm())
         script = self.service.generate_python(wf)
-        self.assertIn("load_dotenv()", script)
+        # os.getenv calls are replaced with resolved values at export time
+        self.assertNotIn("os.getenv(", script)
 
     def test_block_comment_present(self):
         wf = Workflow(name="w")
@@ -205,7 +205,8 @@ class TestGeneratePython(unittest.TestCase):
         wf = Workflow(name="w")
         wf.add_block(_script())
         script = self.service.generate_python(wf)
-        self.assertIn("def run(x):", script)
+        # Function is renamed to avoid collisions between multiple PythonScriptBlocks.
+        self.assertIn("def run_my_script(x):", script)
 
     def test_dependency_order_in_output(self):
         wf = Workflow(name="w")
