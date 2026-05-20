@@ -24,11 +24,23 @@ body {
     color: var(--text);
 }
 
+:root { --config-width: 252px; }
+
 #main-layout {
     flex: 1;
     display: grid;
-    grid-template-columns: 210px 1fr 252px;
+    grid-template-columns: 210px 1fr 5px var(--config-width);
     grid-template-rows: 1fr;
     min-height: 0;
     overflow: hidden;
 }
+
+#config-resizer {
+    background: var(--border);
+    cursor: col-resize;
+    transition: background 0.15s;
+    position: relative;
+    z-index: 10;
+}
+#config-resizer:hover,
+#config-resizer.dragging { background: var(--accent); }

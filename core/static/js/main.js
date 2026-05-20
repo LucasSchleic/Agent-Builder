@@ -37,5 +37,35 @@ canvas.init();
 toolbox.init();
 toolbar.init();
 
+// Config panel resize handle
+(function () {
+    const resizer = document.getElementById('config-resizer');
+    let startX = 0, startWidth = 0;
+
+    resizer.addEventListener('mousedown', e => {
+        e.preventDefault();
+        startX     = e.clientX;
+        startWidth = document.getElementById('config-panel').getBoundingClientRect().width;
+        resizer.classList.add('dragging');
+        document.body.style.cursor     = 'col-resize';
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup',   onUp);
+    });
+
+    function onMove(e) {
+        const newWidth = Math.max(180, Math.min(700, startWidth + (startX - e.clientX)));
+        document.documentElement.style.setProperty('--config-width', newWidth + 'px');
+    }
+
+    function onUp() {
+        resizer.classList.remove('dragging');
+        document.body.style.cursor     = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup',   onUp);
+    }
+}());
+
 wfPanel.display_workflows();
 canvas.render_workflow(null); // show empty canvas hint
