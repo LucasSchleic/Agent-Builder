@@ -390,7 +390,7 @@ Ce scénario présente l'enchaînement des blocs au moment de l'exécution.
 
 Le `WorkflowExecutor` :
 
-- ordonne les blocs via un tri topologique (algorithme de Kahn) ;
+- ordonne les blocs via un tri topologique (DFS postorder inversé) ;
 - prépare les entrées de chaque bloc à partir du contexte d'exécution ;
 - exécute chaque bloc dans l'ordre ;
 - récupère le résultat global.
