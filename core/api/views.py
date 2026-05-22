@@ -39,6 +39,34 @@ def _ensure_workflows_dir() -> None:
     WORKFLOWS_DIR.mkdir(exist_ok=True)
 
 
+def _sync_agent_config(wf: Workflow, block_id: str) -> None:
+    """Keep AgentBlock llm_block_id and tool_block_ids in sync with visual connections.
+
+    Called after any connection change so the config always reflects the actual wiring.
+    """
+    from core.domain.block import AgentBlock
+    try:
+        block = wf.get_block(block_id)
+    except ValueError:
+        return
+    if not isinstance(block, AgentBlock):
+        return
+    llm_id = ""
+    tool_ids = []
+    for conn in wf.connections:
+        if conn.target_block_id != block_id:
+            continue
+        target_port = next((p for p in block.input_ports if p.id == conn.target_port_id), None)
+        if not target_port:
+            continue
+        if target_port.name == "llm_input":
+            llm_id = conn.source_block_id
+        elif target_port.name == "tool_input":
+            tool_ids.append(conn.source_block_id)
+    block.config["llm_block_id"] = llm_id
+    block.config["tool_block_ids"] = tool_ids
+
+
 def _load_body(request) -> dict:
     """Decode the JSON request body and return it as a dict."""
     return json.loads(request.body)
@@ -215,6 +243,7 @@ def add_connection(request):
             target_port_id=data["target_port_id"],
         )
         wf.add_connection(conn)
+        _sync_agent_config(wf, conn.target_block_id)
     except (KeyError, ValueError) as exc:
         return JsonResponse({"error": str(exc)}, status=400)
     return JsonResponse({"workflow": wf.to_dict()})
@@ -231,10 +260,15 @@ def remove_connection(request):
     """
     data = _load_body(request)
     wf = _workflow_from_body(data)
+    connection_id = data.get("connection_id")
+    # Capture target before removal so we can resync the AgentBlock config.
+    removed_conn = next((c for c in wf.connections if c.id == connection_id), None)
     try:
-        wf.remove_connection(data.get("connection_id"))
+        wf.remove_connection(connection_id)
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=404)
+    if removed_conn:
+        _sync_agent_config(wf, removed_conn.target_block_id)
     return JsonResponse({"workflow": wf.to_dict()})
 
 

@@ -127,14 +127,24 @@ class LLMBlock(Block):
             and bool(self.config.get("api_key_env_var"))
         )
 
+    @staticmethod
+    def _resolve(value: str) -> str:
+        """Resolve a config value: if it looks like an env var name (no spaces, no '://'),
+        return os.getenv(value) or the literal value as fallback."""
+        if value and " " not in value and "://" not in value:
+            resolved = os.getenv(value)
+            if resolved:
+                return resolved
+        return value
+
     def execute(self, context: dict) -> Any:
         """Instantiate and return a configured ChatOpenAI object."""
         # Lazy import: keeps the domain importable even if langchain is not installed yet.
         from langchain_openai import ChatOpenAI
 
         return ChatOpenAI(
-            base_url=self.config["api_url"],
-            model=self.config["model_name"],
+            base_url=self._resolve(self.config["api_url"]),
+            model=self._resolve(self.config["model_name"]),
             temperature=self.config["temperature"],
             # Read the API key from the environment at runtime — never hardcoded.
             api_key=os.getenv(self.config["api_key_env_var"]),
