@@ -206,6 +206,10 @@ def update_block(request):
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=404)
 
+    new_name = data.get("name", "").strip()
+    if new_name:
+        block.name = new_name
+
     new_config = data.get("config", {})
     block.config.update(new_config)
 

@@ -28,6 +28,7 @@ export class ConfigPanel {
         const fields = this._fieldsFor(block);
         this._body.innerHTML =
             `<div class="config-block-title">${_esc(block.name)}<span>${_esc(block.type)}</span></div>` +
+            `<div class="config-field"><label>Name</label><input type="text" id="cf-block-name" value="${_esc(block.name)}" spellcheck="false"></div>` +
             fields.map(f => this._fieldHtml(f, block.config)).join('') +
             `<button class="config-save-btn" id="cfg-save">Save</button>`;
 
@@ -99,8 +100,11 @@ export class ConfigPanel {
             } else config[f.key] = el.value;
         });
 
+        const nameEl = document.getElementById('cf-block-name');
+        const name = nameEl ? nameEl.value.trim() : block.name;
+
         const data = await this.api.post('/api/workflow/block/update/', {
-            workflow: this.state.workflow, block_id: block.id, config,
+            workflow: this.state.workflow, block_id: block.id, config, name,
         });
         if (data.error) { this.modal.show('Error', data.error, [{ label: 'OK' }]); return; }
         this.canvas.update(data.workflow);

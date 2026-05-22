@@ -427,14 +427,19 @@ class PythonScriptBlock(Block):
             # If the script has a syntax error, keep whatever inputs were detected before.
             pass
 
-        # Rebuild one input port per detected parameter.
+        # Rebuild input ports, preserving existing port IDs by name so that
+        # connections referencing those IDs are not invalidated on each save.
+        old_inputs = {p.name: p.id for p in self.input_ports}
         self.input_ports = [
-            Port(name=param, direction="input", data_type="any", required=True)
+            Port(name=param, direction="input", data_type="any", required=True,
+                 port_id=old_inputs.get(param))
             for param in self.config["detected_inputs"]
         ]
-        # Always a single output port regardless of what the function returns.
+        # Preserve the output port ID the same way.
+        old_output_id = self.output_ports[0].id if self.output_ports else None
         self.output_ports = [
-            Port(name="output", direction="output", data_type="any"),
+            Port(name="output", direction="output", data_type="any",
+                 port_id=old_output_id),
         ]
 
     def validate_script(self) -> bool:
