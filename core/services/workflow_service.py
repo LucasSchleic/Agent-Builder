@@ -17,6 +17,7 @@ class WorkflowService:
             A fresh Workflow instance with no blocks or connections.
         """
         return Workflow(name=name)
+    
 
     def save_workflow(self, workflow: Workflow, path: str) -> None:
         """Serialize a workflow to JSON and write it to disk.
@@ -29,6 +30,7 @@ class WorkflowService:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
+
     def save_as_workflow(self, workflow: Workflow, path: str) -> None:
         """Save a workflow to a new path (Save As).
 
@@ -40,6 +42,7 @@ class WorkflowService:
             path: New destination path for the .json file.
         """
         self.save_workflow(workflow, path)
+
 
     def load_workflow(self, path: str) -> Workflow:
         """Read a JSON file from disk and reconstruct a Workflow instance.
@@ -55,6 +58,7 @@ class WorkflowService:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return Workflow.from_dict(data)
+
 
     def list_workflows(self, directory: str) -> List[str]:
         """Return the filenames of all saved workflows in a directory.

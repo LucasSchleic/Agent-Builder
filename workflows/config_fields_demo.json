@@ -1,0 +1,95 @@
+{
+  "id": "cfg-demo-0001-0002-0003-0004-cfgdemo00005",
+  "name": "config_fields_demo",
+  "blocks": [
+    {
+      "id": "cfg-scr-0001-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Generateur de rapport",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run():\n    import os\n    from datetime import datetime\n    OUTPUT_DIR = 'rapports'\n    TITRE = 'Rapport quotidien'\n    NB_LIGNES = 5\n    os.makedirs(OUTPUT_DIR, exist_ok=True)\n    now = datetime.now().strftime('%Y%m%d_%H%M%S')\n    lines = [TITRE, '=' * len(TITRE), '']\n    for i in range(1, NB_LIGNES + 1):\n        lines.append(f'  Ligne {i} : donnee generee automatiquement')\n    lines += ['', f'Genere le {datetime.now().strftime(\"%d/%m/%Y %H:%M\")}']\n    content = '\\n'.join(lines)\n    path = os.path.join(OUTPUT_DIR, f'rapport_{now}.txt')\n    with open(path, 'w', encoding='utf-8') as f:\n        f.write(content)\n    return f'{NB_LIGNES} lignes ecrites dans {path}'",
+        "detected_inputs": [],
+        "detected_outputs": [
+          "output"
+        ],
+        "detected_config": {
+          "OUTPUT_DIR": {
+            "label": "Output Dir",
+            "default": "rapports",
+            "value": "Test"
+          },
+          "TITRE": {
+            "label": "Titre",
+            "default": "Rapport quotidien",
+            "value": "Rapport quotidien"
+          },
+          "NB_LIGNES": {
+            "label": "Nb Lignes",
+            "default": 5,
+            "value": 5
+          }
+        }
+      },
+      "input_ports": [],
+      "output_ports": [
+        {
+          "id": "cfg-scr-0001-0000-0000-0000-000000000002",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "cfg-scr-0002-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Afficher résultat",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(resultat):\n    PREFIX = '[OK]'\n    return f'{PREFIX} {resultat}'",
+        "detected_inputs": [
+          "resultat"
+        ],
+        "detected_outputs": [
+          "output"
+        ],
+        "detected_config": {
+          "PREFIX": {
+            "label": "Prefix",
+            "default": "[OK]",
+            "value": "[OK]"
+          }
+        }
+      },
+      "input_ports": [
+        {
+          "id": "cfg-scr-0002-0000-0000-0000-000000000002",
+          "name": "resultat",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "cfg-scr-0002-0000-0000-0000-000000000003",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "cfg-conn-0001",
+      "source_block_id": "cfg-scr-0001-0000-0000-0000-000000000001",
+      "source_port_id": "cfg-scr-0001-0000-0000-0000-000000000002",
+      "target_block_id": "cfg-scr-0002-0000-0000-0000-000000000001",
+      "target_port_id": "cfg-scr-0002-0000-0000-0000-000000000002"
+    }
+  ]
+}

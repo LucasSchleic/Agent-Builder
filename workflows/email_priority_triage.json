@@ -1,0 +1,162 @@
+{
+  "id": "email-prio-0001-0002-0003-0004-emailprio005",
+  "name": "email_priority_triage",
+  "blocks": [
+    {
+      "id": "ep-llm-0001-0000-0000-0000-000000000001",
+      "type": "LLMBlock",
+      "name": "Claude Haiku",
+      "config": {
+        "api_url": "GENAI_API_URL",
+        "model_name": "GENAI_MODEL",
+        "temperature": 0.3,
+        "api_key_env_var": "GENAI_API_KEY"
+      },
+      "input_ports": [],
+      "output_ports": [
+        {
+          "id": "ep-llm-0001-0000-0000-0000-000000000002",
+          "name": "llm_output",
+          "direction": "output",
+          "data_type": "llm",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "ep-scr-0002-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Lire Mails IMAP",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run():\n    import imaplib, email, os, re\n    from email.header import decode_header\n    NB_MAILS = 10\n    user = os.getenv('GMAIL_USER', '')\n    pwd = os.getenv('GMAIL_APP_PASSWORD', '')\n    if not user or not pwd:\n        return [{'from': 'demo@example.com', 'subject': 'Credentials manquants — ajouter GMAIL_USER et GMAIL_APP_PASSWORD dans .env', 'date': '2026-05-26', 'snippet': ''}]\n    mail = imaplib.IMAP4_SSL('imap.gmail.com')\n    mail.login(user, pwd)\n    mail.select('INBOX')\n    _, ids_data = mail.search(None, 'UNSEEN')\n    ids = ids_data[0].split()[-NB_MAILS:]\n    results = []\n    for mid in ids:\n        _, data = mail.fetch(mid, '(RFC822)')\n        msg = email.message_from_bytes(data[0][1])\n        raw_subj = decode_header(msg['Subject'] or '(sans sujet)')[0]\n        subject = raw_subj[0].decode(raw_subj[1] or 'utf-8') if isinstance(raw_subj[0], bytes) else str(raw_subj[0])\n        sender = msg['From'] or ''\n        date = msg['Date'] or ''\n        snippet = ''\n        if msg.is_multipart():\n            for part in msg.walk():\n                if part.get_content_type() == 'text/plain':\n                    snippet = part.get_payload(decode=True).decode('utf-8', errors='ignore')[:300]\n                    break\n        else:\n            payload = msg.get_payload(decode=True)\n            snippet = payload.decode('utf-8', errors='ignore')[:300] if payload else ''\n        snippet = re.sub(r'\\[image:[^\\]]*\\]', '', snippet).strip()\n        results.append({'from': sender, 'subject': subject, 'date': date, 'snippet': snippet})\n    mail.logout()\n    return results",
+        "detected_inputs": [],
+        "detected_outputs": [
+          "output"
+        ],
+        "detected_config": {
+          "NB_MAILS": {
+            "label": "Nb Mails",
+            "default": 10,
+            "value": 10
+          }
+        }
+      },
+      "input_ports": [],
+      "output_ports": [
+        {
+          "id": "ep-scr-0002-0000-0000-0000-000000000002",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "ep-scr-0003-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Trier par Priorite",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(llm, emails):\n    import json, re\n    if not emails:\n        return []\n    lines = []\n    for i, m in enumerate(emails, 1):\n        lines.append(f'[{i}] De: {m.get(\"from\",\"?\")}'  )\n        lines.append(f'    Sujet: {m.get(\"subject\",\"?\")}'  )\n        lines.append(f'    Date: {m.get(\"date\",\"?\")}'  )\n        if m.get('snippet'):\n            lines.append(f'    Extrait: {m[\"snippet\"][:200]}'  )\n        lines.append('')\n    emails_text = '\\n'.join(lines)\n    prompt = (\n        f'Voici {len(emails)} emails non lus:\\n\\n{emails_text}\\n\\n'\n        'Pour chaque email, attribue un score de priorite de 1 (urgent) a 3 (faible) '\n        'et une action recommandee (Repondre/Archiver/Transferer/Ignorer).\\n'\n        'Reponds UNIQUEMENT avec un JSON valide, tableau d objets avec les cles: '\n        'index (entier 1-based), priorite (1/2/3), action, raison (une phrase courte).\\n'\n        'Exemple: [{\"index\": 1, \"priorite\": 1, \"action\": \"Repondre\", \"raison\": \"Demande urgente\"}]'\n    )\n    response = llm.invoke(prompt)\n    content = response.content if hasattr(response, 'content') else str(response)\n    match = re.search(r'\\[.*\\]', content, re.DOTALL)\n    if match:\n        try:\n            scores = json.loads(match.group())\n        except Exception:\n            scores = [{'index': i + 1, 'priorite': 2, 'action': 'Voir', 'raison': ''} for i in range(len(emails))]\n    else:\n        scores = [{'index': i + 1, 'priorite': 2, 'action': 'Voir', 'raison': ''} for i in range(len(emails))]\n    score_map = {s['index']: s for s in scores}\n    enriched = []\n    for i, m in enumerate(emails, 1):\n        s = score_map.get(i, {'priorite': 2, 'action': 'Voir', 'raison': ''})\n        enriched.append({**m, 'priorite': s['priorite'], 'action': s['action'], 'raison': s['raison']})\n    enriched.sort(key=lambda x: x['priorite'])\n    return enriched",
+        "detected_inputs": [
+          "llm",
+          "emails"
+        ],
+        "detected_outputs": [
+          "output"
+        ],
+        "detected_config": {}
+      },
+      "input_ports": [
+        {
+          "id": "ep-scr-0003-0000-0000-0000-000000000002",
+          "name": "llm",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        },
+        {
+          "id": "ep-scr-0003-0000-0000-0000-000000000003",
+          "name": "emails",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "ep-scr-0003-0000-0000-0000-000000000004",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "ep-scr-0004-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Rapport Priorite",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(emails_tries):\n    from datetime import datetime\n    import os, re\n    RAPPORT_DIR = 'rapports'\n    os.makedirs(RAPPORT_DIR, exist_ok=True)\n    now = datetime.now()\n    sep = '=' * 60\n    labels = {1: 'URGENT', 2: 'NORMAL', 3: 'FAIBLE'}\n    lines = [\n        sep,\n        '  RAPPORT TRIAGE MAILS - ORDRE DE PRIORITE',\n        f'  Genere le {now.strftime(\"%d/%m/%Y a %H:%M\")}',\n        f'  {len(emails_tries)} mail(s) traite(s)',\n        sep,\n        ''\n    ]\n    for i, m in enumerate(emails_tries, 1):\n        p = m.get('priorite', 2)\n        lines.append(f'[{i}] {labels.get(p, str(p))} - {m.get(\"action\",\"?\")}')\n        lines.append(f'    De      : {m.get(\"from\",\"?\")}')\n        lines.append(f'    Sujet   : {m.get(\"subject\",\"?\")}')\n        lines.append(f'    Date    : {m.get(\"date\",\"?\")}')\n        lines.append(f'    Raison  : {m.get(\"raison\",\"\")}')\n        if m.get('snippet'):\n            snippet = re.sub(r'[\\r\\n\\t]+', ' ', m['snippet']).strip()[:150]\n            lines.append(f'    Extrait : {snippet}')\n        lines.append('')\n    lines.append(sep)\n    content = '\\n'.join(lines)\n    filename = os.path.join(RAPPORT_DIR, f'triage_{now.strftime(\"%Y%m%d_%H%M%S\")}.txt')\n    with open(filename, 'w', encoding='utf-8') as f:\n        f.write(content)\n    return f'Rapport ecrit dans {filename}'",
+        "detected_inputs": [
+          "emails_tries"
+        ],
+        "detected_outputs": [
+          "output"
+        ],
+        "detected_config": {
+          "RAPPORT_DIR": {
+            "label": "Rapport Dir",
+            "default": "rapports",
+            "value": "rapports"
+          }
+        }
+      },
+      "input_ports": [
+        {
+          "id": "ep-scr-0004-0000-0000-0000-000000000002",
+          "name": "emails_tries",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "ep-scr-0004-0000-0000-0000-000000000003",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ep-conn-0001",
+      "source_block_id": "ep-llm-0001-0000-0000-0000-000000000001",
+      "source_port_id": "ep-llm-0001-0000-0000-0000-000000000002",
+      "target_block_id": "ep-scr-0003-0000-0000-0000-000000000001",
+      "target_port_id": "ep-scr-0003-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "ep-conn-0002",
+      "source_block_id": "ep-scr-0002-0000-0000-0000-000000000001",
+      "source_port_id": "ep-scr-0002-0000-0000-0000-000000000002",
+      "target_block_id": "ep-scr-0003-0000-0000-0000-000000000001",
+      "target_port_id": "ep-scr-0003-0000-0000-0000-000000000003"
+    },
+    {
+      "id": "ep-conn-0003",
+      "source_block_id": "ep-scr-0003-0000-0000-0000-000000000001",
+      "source_port_id": "ep-scr-0003-0000-0000-0000-000000000004",
+      "target_block_id": "ep-scr-0004-0000-0000-0000-000000000001",
+      "target_port_id": "ep-scr-0004-0000-0000-0000-000000000002"
+    }
+  ]
+}

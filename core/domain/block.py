@@ -150,13 +150,24 @@ class LLMBlock(Block):
             api_key=os.getenv(self.config["api_key_env_var"]),
         )
 
+    @staticmethod
+    def _snippet_value(value: str) -> str:
+        """Return a Python expression for a config value.
+
+        If the value looks like an env var name, emit os.getenv(...) so the
+        export service can resolve it to the actual value at export time.
+        """
+        if value and " " not in value and "://" not in value:
+            return f"os.getenv({value!r})"
+        return repr(value)
+
     def generate_code_snippet(self) -> str:
         var = _to_var_name(self.name)
         env_var = self.config["api_key_env_var"]
         return (
             f"{var} = ChatOpenAI(\n"
-            f"    base_url={self.config['api_url']!r},\n"
-            f"    model={self.config['model_name']!r},\n"
+            f"    base_url={self._snippet_value(self.config['api_url'])},\n"
+            f"    model={self._snippet_value(self.config['model_name'])},\n"
             f"    temperature={self.config['temperature']},\n"
             f"    api_key=os.getenv({env_var!r}),\n"
             f")"
@@ -497,18 +508,52 @@ class PythonScriptBlock(Block):
             and self.validate_script()
         )
 
+    class _ConfigInjector(ast.NodeTransformer):
+        """Rewrites ALL_CAPS constant assignments with user-configured values."""
+        def __init__(self, values: dict):
+            self.values = values
+
+        def visit_Assign(self, node):
+            if (
+                len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id in self.values
+                and isinstance(node.value, ast.Constant)
+            ):
+                node.value = ast.Constant(value=self.values[node.targets[0].id])
+            return node
+
     def execute(self, context: dict) -> Any:
         """Execute the user's script function with inputs pulled from context."""
+        script = self.config["script_code"]
+
+        # If the user configured ALL_CAPS fields, rewrite their values in the AST
+        # before executing so the script uses the configured values, not the defaults.
+        dc = self.config.get("detected_config", {})
+        if dc:
+            overrides = {k: v["value"] for k, v in dc.items()}
+            try:
+                tree = self._ConfigInjector(overrides).visit(ast.parse(script))
+                ast.fix_missing_locations(tree)
+                script = ast.unparse(tree)
+            except Exception:
+                pass  # Fall back to the original script on any AST error.
+
         local_vars: dict = {}
-        # Empty dict for globals isolates the script from the application's namespace,
-        # preventing the script from accidentally reading or modifying application state.
-        exec(self.config["script_code"], {}, local_vars)  # noqa: S102
-        # Retrieve the target function from the local scope created by exec.
+        exec(script, {}, local_vars)  # noqa: S102
         func = local_vars[self.config["function_name"]]
-        # Pull only the inputs the function expects from the shared execution context.
         inputs = {k: context[k] for k in self.config["detected_inputs"]}
         return func(**inputs)
 
     def generate_code_snippet(self) -> str:
-        # The script code is already valid Python — return it as-is.
-        return self.config.get("script_code", "# no script defined")
+        script = self.config.get("script_code", "# no script defined")
+        dc = self.config.get("detected_config", {})
+        if dc:
+            overrides = {k: v["value"] for k, v in dc.items()}
+            try:
+                tree = self._ConfigInjector(overrides).visit(ast.parse(script))
+                ast.fix_missing_locations(tree)
+                script = ast.unparse(tree)
+            except Exception:
+                pass
+        return script

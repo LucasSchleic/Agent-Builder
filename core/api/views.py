@@ -292,7 +292,7 @@ def export_workflow(request):
     data = _load_body(request)
     wf = _workflow_from_body(data)
     _ensure_workflows_dir()
-    script_path = WORKFLOWS_DIR / f"{wf.name}_export.py"
+    script_path = WORKFLOWS_DIR / f"{wf.name}.py"
     try:
         # generate_python is called first so any generation error is caught
         # before writing to disk.

@@ -57,16 +57,33 @@ export class ConfigPanel {
                 { key: 'headers', label: 'Headers (JSON)', type: 'textarea', json: true, rows: 4 },
                 { key: 'body',    label: 'Body (JSON)',    type: 'textarea', json: true, rows: 6 },
             ];
-            case 'PythonScriptBlock': return [
-                { key: 'function_name', label: 'Function Name', type: 'text' },
-                { key: 'script_code',   label: 'Script Code',   type: 'textarea', rows: 18 },
-            ];
+            case 'PythonScriptBlock': {
+                const base = [
+                    { key: 'function_name', label: 'Function Name', type: 'text' },
+                    { key: 'script_code',   label: 'Script Code',   type: 'textarea', rows: 18 },
+                ];
+                const dc = block.config.detected_config || {};
+                const cfgFields = Object.entries(dc).map(([k, v]) => ({
+                    key:       `__cfg__${k}`,
+                    label:     v.label,
+                    type:      typeof v.default === 'number' ? 'number' : 'text',
+                    cfgValue:  v.value,
+                    configVar: k,
+                }));
+                if (cfgFields.length) {
+                    base.push({ key: '__cfg_sep__', type: 'separator', label: 'Config Fields' });
+                    base.push(...cfgFields);
+                }
+                return base;
+            }
             default: return [];
         }
     }
 
     _fieldHtml(f, cfg) {
-        const val = cfg[f.key];
+        if (f.type === 'separator')
+            return `<div class="config-separator">${f.label}</div>`;
+        const val = f.cfgValue !== undefined ? f.cfgValue : cfg[f.key];
         if (f.type === 'checkbox')
             return `<div class="config-field"><label>
                         <input type="checkbox" id="cf-${f.key}" ${val ? 'checked' : ''}> ${f.label}
@@ -91,6 +108,7 @@ export class ConfigPanel {
     async _save(block, fields) {
         const config = {};
         fields.forEach(f => {
+            if (f.configVar || f.type === 'separator') return; // handled separately
             const el = document.getElementById(`cf-${f.key}`);
             if (!el) return;
             if (f.type === 'checkbox')    config[f.key] = el.checked;
@@ -102,6 +120,22 @@ export class ConfigPanel {
 
         const nameEl = document.getElementById('cf-block-name');
         const name = nameEl ? nameEl.value.trim() : block.name;
+
+        // Collect updated detected_config values from ALL_CAPS fields.
+        const dcUpdates = {};
+        fields.filter(f => f.configVar).forEach(f => {
+            const el = document.getElementById(`cf-${f.key}`);
+            if (!el) return;
+            // Preserve original type: number inputs must stay numbers, not strings.
+            dcUpdates[f.configVar] = f.type === 'number' ? (parseFloat(el.value) || 0) : el.value;
+        });
+        if (Object.keys(dcUpdates).length) {
+            const dc = block.config.detected_config || {};
+            Object.entries(dcUpdates).forEach(([k, v]) => {
+                if (dc[k]) dc[k] = { ...dc[k], value: v };
+            });
+            config.detected_config = dc;
+        }
 
         const data = await this.api.post('/api/workflow/block/update/', {
             workflow: this.state.workflow, block_id: block.id, config, name,
