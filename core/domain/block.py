@@ -393,13 +393,29 @@ class PythonScriptBlock(Block):
     AST parsing whenever the script code is set.
     """
 
+    _DEFAULT_SCRIPT = (
+        "def run(input):\n"
+        "    \n"
+        "    # Modify this function to process your data.\n"
+        "    # Parameters become input ports (connected to other blocks).\n"
+        "    # ALL_CAPS variables will become configurable fields (coming soon).\n"
+        "    \n"
+        "    OUTPUT_DIR = 'output'\n"
+        "    result = str(input)\n"
+        "    return result\n"
+    )
+
     def __init__(self, name: str = "Script", config: dict = None, block_id: str = None):
         super().__init__(name, config, block_id)
-        self.config.setdefault("script_code", "")
+        self.config.setdefault("script_code", self._DEFAULT_SCRIPT)
         # function_name identifies which function inside the script to call.
         self.config.setdefault("function_name", "run")
         self.config.setdefault("detected_inputs", [])
         self.config.setdefault("detected_outputs", ["output"])
+        # detected_config: ALL_CAPS variables detected in the script body.
+        # Each entry: {"key": "OUTPUT_DIR", "label": "Output Dir", "default": "output", "value": "output"}
+        # Reserved for configurable fields feature (IMPROVEMENTS.md #3).
+        self.config.setdefault("detected_config", {})
 
         # If the block is loaded from saved data, the script is already set —
         # parse it immediately so ports reflect the actual function signature.
@@ -422,6 +438,29 @@ class PythonScriptBlock(Block):
                 ):
                     # Extract parameter names from the function definition.
                     self.config["detected_inputs"] = [arg.arg for arg in node.args.args]
+
+                    # Detect ALL_CAPS assignments as future configurable fields.
+                    # Stored now, used by the configurable-fields feature (IMPROVEMENTS.md #3).
+                    detected_config = {}
+                    for stmt in node.body:
+                        if (
+                            isinstance(stmt, ast.Assign)
+                            and len(stmt.targets) == 1
+                            and isinstance(stmt.targets[0], ast.Name)
+                            and stmt.targets[0].id.isupper()
+                            and isinstance(stmt.value, (ast.Constant,))
+                        ):
+                            key = stmt.targets[0].id
+                            default = stmt.value.value
+                            label = key.replace("_", " ").title()
+                            existing = self.config.get("detected_config", {}).get(key, {})
+                            detected_config[key] = {
+                                "label":   label,
+                                "default": default,
+                                # Preserve user-edited value if already set.
+                                "value":   existing.get("value", default),
+                            }
+                    self.config["detected_config"] = detected_config
                     break
         except SyntaxError:
             # If the script has a syntax error, keep whatever inputs were detected before.

@@ -35,6 +35,31 @@ body {
     overflow: hidden;
 }
 
+#status-bar {
+    height: 24px;
+    flex-shrink: 0;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    font-size: 12px;
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    user-select: none;
+}
+
+#status-workflow {
+    font-weight: 700;
+}
+
+#status-version {
+    font-weight: 400;
+    font-size: 11px;
+    opacity: 0.9;
+}
+
 #config-resizer {
     background: var(--border);
     cursor: col-resize;

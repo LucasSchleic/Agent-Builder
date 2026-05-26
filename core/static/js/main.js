@@ -69,3 +69,11 @@ toolbar.init();
 
 wfPanel.display_workflows();
 canvas.render_workflow(null); // show empty canvas hint
+
+// Status bar — keep workflow name in sync
+const _statusWorkflow = document.getElementById('status-workflow');
+const _origUpdate = canvas.update.bind(canvas);
+canvas.update = function(workflow) {
+    _origUpdate(workflow);
+    _statusWorkflow.textContent = AppState.workflow ? AppState.workflow.name : '';
+};
