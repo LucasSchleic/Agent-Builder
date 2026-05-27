@@ -291,13 +291,12 @@ def export_workflow(request):
     """
     data = _load_body(request)
     wf = _workflow_from_body(data)
+    resolve_secrets = bool(data.get("resolve_secrets", True))
     _ensure_workflows_dir()
     script_path = WORKFLOWS_DIR / f"{wf.name}.py"
     try:
-        # generate_python is called first so any generation error is caught
-        # before writing to disk.
-        script = _export.generate_python(wf)
-        _export.export_to_file(wf, str(script_path))
+        script = _export.generate_python(wf, resolve_secrets=resolve_secrets)
+        _export.export_to_file(wf, str(script_path), resolve_secrets=resolve_secrets)
     except Exception as exc:
         return JsonResponse({"error": str(exc)}, status=400)
     return JsonResponse({"script": script, "path": str(script_path)})

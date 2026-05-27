@@ -153,14 +153,16 @@ class ExportService:
                 pass
         return mapping
 
-    def _resolve_env_vars(self, code: str) -> str:
-        """Replace every os.getenv('VAR') call with its resolved value at export time.
+    def _resolve_env_vars(self, code: str, resolve: bool = True) -> str:
+        """Replace every os.getenv('VAR') call in generated code.
 
-        This makes the exported script fully standalone — no .env file needed.
-        Handles both os.getenv('VAR') and os.getenv('VAR', 'default') forms,
-        with single or double quotes.
+        If resolve is True, bakes in the actual env var value (standalone script).
+        If resolve is False, replaces with a visible placeholder so the user
+        knows where to insert their own credentials.
         """
         def replacer(match: re.Match) -> str:
+            if not resolve:
+                return repr("INSERER VOTRE CLE")
             var_name = match.group(1)
             value = os.getenv(var_name, "")
             return repr(value)
@@ -187,7 +189,7 @@ class ExportService:
     # Script generation
     # ------------------------------------------------------------------
 
-    def generate_python(self, workflow: Workflow) -> str:
+    def generate_python(self, workflow: Workflow, resolve_secrets: bool = True) -> str:
         """Generate a complete, standalone Python script from a workflow.
 
         Steps:
@@ -249,16 +251,16 @@ class ExportService:
             # Blank line between sections for readability.
             lines.append("")
 
-        return self._resolve_env_vars("\n".join(lines))
+        return self._resolve_env_vars("\n".join(lines), resolve=resolve_secrets)
 
-    def export_to_file(self, workflow: Workflow, path: str) -> None:
+    def export_to_file(self, workflow: Workflow, path: str, resolve_secrets: bool = True) -> None:
         """Write the generated Python script to disk.
 
         Args:
             workflow: The workflow to export.
             path: Destination path for the .py file (extension included by caller).
+            resolve_secrets: If False, env var values are replaced with a placeholder.
         """
-        code = self.generate_python(workflow)
-        # Open in write mode — creates the file if it doesn't exist, overwrites if it does.
+        code = self.generate_python(workflow, resolve_secrets=resolve_secrets)
         with open(path, "w", encoding="utf-8") as f:
             f.write(code)

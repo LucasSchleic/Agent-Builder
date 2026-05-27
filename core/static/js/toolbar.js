@@ -101,7 +101,30 @@ export class Toolbar {
             this.modal.show('Nothing to export', 'Create a workflow first.', [{ label: 'OK' }]);
             return;
         }
-        const data = await this.api.post('/api/workflow/export/', { workflow: this.state.workflow });
+        this.modal.showHtml(
+            'Exporter le workflow',
+            `<div class="export-options">
+                <label class="export-checkbox-label">
+                    <input type="checkbox" id="export-include-secrets" checked>
+                    Inclure les clés API (valeurs réelles)
+                </label>
+                <div class="export-hint">
+                    Si décoché, les clés seront remplacées par <code>INSERER VOTRE CLE</code>
+                </div>
+            </div>`,
+            [
+                { label: 'Exporter', action: () => this._do_export() },
+                { label: 'Annuler', secondary: true },
+            ]
+        );
+    }
+
+    async _do_export() {
+        const resolveSecrets = document.getElementById('export-include-secrets')?.checked ?? true;
+        const data = await this.api.post('/api/workflow/export/', {
+            workflow: this.state.workflow,
+            resolve_secrets: resolveSecrets,
+        });
         if (data.error) { this.modal.show('Export Error', data.error, [{ label: 'OK' }]); return; }
         this.modal.show('Exported Script', data.script, [
             { label: 'Copy', action: () => navigator.clipboard?.writeText(data.script) },
