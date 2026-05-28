@@ -39,7 +39,7 @@ class WorkflowService:
 
 ### Principe
 `ExportService.generate_python(workflow)` :
-1. Tri topologique des blocs (algorithme de Kahn)
+1. Tri topologique des blocs (DFS ordre inversé)
 2. Pour chaque bloc dans l'ordre : appel de `block.generate_code_snippet()`
 3. Assemblage du script final
 
