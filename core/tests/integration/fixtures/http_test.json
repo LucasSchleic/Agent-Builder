@@ -1,0 +1,78 @@
+{
+  "id": "http-test-0001-0002-0003-0004-httptest005",
+  "name": "http_test",
+  "blocks": [
+    {
+      "id": "ht-http-0001-0000-0000-0000-000000000001",
+      "type": "HTTPBlock",
+      "name": "Blague API",
+      "config": {
+        "method": "GET",
+        "url": "https://official-joke-api.appspot.com/random_joke",
+        "headers": {},
+        "body": {}
+      },
+      "input_ports": [
+        {
+          "id": "ht-http-0001-0000-0000-0000-000000000002",
+          "name": "http_input",
+          "direction": "input",
+          "data_type": "any",
+          "required": false
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "ht-http-0001-0000-0000-0000-000000000003",
+          "name": "http_output",
+          "direction": "output",
+          "data_type": "dict",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "ht-scr-0002-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Formateur",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(blague):\n    return f'Q: {blague[\"setup\"]}\\nA: {blague[\"punchline\"]}'",
+        "detected_inputs": [
+          "blague"
+        ],
+        "detected_outputs": [
+          "output"
+        ],
+        "detected_config": {}
+      },
+      "input_ports": [
+        {
+          "id": "ht-scr-0002-0000-0000-0000-000000000002",
+          "name": "blague",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "ht-scr-0002-0000-0000-0000-000000000003",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ht-conn-0001",
+      "source_block_id": "ht-http-0001-0000-0000-0000-000000000001",
+      "source_port_id": "ht-http-0001-0000-0000-0000-000000000003",
+      "target_block_id": "ht-scr-0002-0000-0000-0000-000000000001",
+      "target_port_id": "ht-scr-0002-0000-0000-0000-000000000002"
+    }
+  ]
+}

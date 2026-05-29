@@ -15,11 +15,12 @@ from core.services.workflow_executor import WorkflowExecutor
 from core.services.workflow_service import WorkflowService
 
 WORKFLOWS_DIR = Path(__file__).parents[3] / "workflows"
+FIXTURES_DIR  = Path(__file__).parent / "fixtures"
 
 
 def _load(name: str) -> Workflow:
-    """Load a workflow JSON by filename (without extension)."""
-    return WorkflowService().load_workflow(str(WORKFLOWS_DIR / f"{name}.json"))
+    """Load a workflow JSON from the test fixtures directory."""
+    return WorkflowService().load_workflow(str(FIXTURES_DIR / f"{name}.json"))
 
 
 # ---------------------------------------------------------------------------

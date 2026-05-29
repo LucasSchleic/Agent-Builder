@@ -448,7 +448,7 @@ class TestExportWorkflow(unittest.TestCase):
             with patch.object(views, "WORKFLOWS_DIR", tmp):
                 req = _post(self.factory, "/api/workflow/export/", {"workflow": wf.to_dict()})
                 views.export_workflow(req)
-            self.assertTrue((tmp / f"{wf.name}_export.py").exists())
+            self.assertTrue((tmp / f"{wf.name}.py").exists())
 
 
 # ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from core.domain.block import AgentBlock, HTTPBlock, LLMBlock, PythonScriptBlock
+from core.domain.block import AgentBlock, BufferMemoryBlock, HTTPBlock, LLMBlock, PythonScriptBlock
 from core.domain.connection import Connection
 from core.domain.workflow import Workflow
 from core.services.export_service import ExportService
@@ -103,14 +103,12 @@ class TestCollectImports(unittest.TestCase):
         imports = self.service._collect_imports([_agent()])
         self.assertTrue(any("create_agent" in i for i in imports))
 
-    def test_memory_enabled_adds_memory_import(self):
-        agent = AgentBlock(name="A", block_id="a1", config={
-            "llm_block_id": "llm-1", "memory_enabled": True,
-        })
-        imports = self.service._collect_imports([agent])
+    def test_buffer_memory_block_adds_memory_import(self):
+        mem = BufferMemoryBlock(name="Memory", block_id="mem-1")
+        imports = self.service._collect_imports([_agent(), mem])
         self.assertTrue(any("MemorySaver" in i for i in imports))
 
-    def test_memory_disabled_no_memory_import(self):
+    def test_no_buffer_memory_block_no_memory_import(self):
         imports = self.service._collect_imports([_agent()])
         self.assertFalse(any("MemorySaver" in i for i in imports))
 

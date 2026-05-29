@@ -74,7 +74,7 @@ class TestAgentBlock(unittest.TestCase):
             "llm_block_id": "llm-uuid-123",
             "tool_block_ids": ["tool-uuid-456"],
             "user_prompt": "Do something",
-            "memory_enabled": False,
+            "memory_block_id": "",
         })
 
     def test_has_input_and_output_ports(self):
@@ -112,9 +112,9 @@ class TestAgentBlock(unittest.TestCase):
 
     def test_generate_code_snippet_with_memory(self):
         block = self._make_valid()
-        block.config["memory_enabled"] = True
+        block.config["memory_block_id"] = "mem-uuid-789"
         snippet = block.generate_code_snippet()
-        self.assertIn("MemorySaver", snippet)
+        self.assertIn("checkpointer", snippet)
 
     def test_generate_code_snippet_without_memory(self):
         snippet = self._make_valid().generate_code_snippet()
