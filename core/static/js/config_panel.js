@@ -46,11 +46,11 @@ export class ConfigPanel {
                 { key: 'api_key_env_var', label: 'API Key Env Var',  type: 'text' },
             ];
             case 'AgentBlock': return [
-                { key: 'system_prompt',  label: 'System Prompt',   type: 'textarea', rows: 4 },
-                { key: 'user_prompt',    label: 'User Prompt',     type: 'textarea', rows: 6 },
-                { key: 'memory_enabled', label: 'Memory Enabled',  type: 'checkbox' },
-                { key: 'llm_block_id',   label: 'LLM Block ID',    type: 'text' },
+                { key: 'system_prompt', label: 'System Prompt', type: 'textarea', rows: 4 },
+                { key: 'user_prompt',   label: 'User Prompt',   type: 'textarea', rows: 6 },
+                { key: 'llm_block_id',  label: 'LLM Block ID',  type: 'text' },
             ];
+            case 'BufferMemoryBlock': return [];
             case 'HTTPBlock': return [
                 { key: 'method',  label: 'Method',         type: 'select',   options: ['GET','POST','PUT','DELETE'] },
                 { key: 'url',     label: 'URL',            type: 'text' },

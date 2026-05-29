@@ -10,6 +10,7 @@ from core.domain.connection import Connection
 from core.domain.workflow import Workflow
 from core.factory.block_creators import (
     AgentBlockCreator,
+    BufferMemoryBlockCreator,
     HTTPBlockCreator,
     LLMBlockCreator,
     PythonScriptBlockCreator,
@@ -31,6 +32,7 @@ _CREATORS = {
     "AgentBlock": AgentBlockCreator,
     "HTTPBlock": HTTPBlockCreator,
     "PythonScriptBlock": PythonScriptBlockCreator,
+    "BufferMemoryBlock": BufferMemoryBlockCreator,
 }
 
 
@@ -40,7 +42,7 @@ def _ensure_workflows_dir() -> None:
 
 
 def _sync_agent_config(wf: Workflow, block_id: str) -> None:
-    """Keep AgentBlock llm_block_id and tool_block_ids in sync with visual connections.
+    """Keep AgentBlock config in sync with visual connections.
 
     Called after any connection change so the config always reflects the actual wiring.
     """
@@ -53,6 +55,7 @@ def _sync_agent_config(wf: Workflow, block_id: str) -> None:
         return
     llm_id = ""
     tool_ids = []
+    memory_id = ""
     for conn in wf.connections:
         if conn.target_block_id != block_id:
             continue
@@ -63,8 +66,11 @@ def _sync_agent_config(wf: Workflow, block_id: str) -> None:
             llm_id = conn.source_block_id
         elif target_port.name == "tool_input":
             tool_ids.append(conn.source_block_id)
+        elif target_port.name == "memory_input":
+            memory_id = conn.source_block_id
     block.config["llm_block_id"] = llm_id
     block.config["tool_block_ids"] = tool_ids
+    block.config["memory_block_id"] = memory_id
 
 
 def _load_body(request) -> dict:

@@ -48,7 +48,7 @@ export class Toolbox {
     }
 
     list_available_block_types() {
-        return ['LLMBlock', 'AgentBlock', 'HTTPBlock', 'PythonScriptBlock'];
+        return ['LLMBlock', 'AgentBlock', 'HTTPBlock', 'PythonScriptBlock', 'BufferMemoryBlock'];
     }
 
     async add_block(workflow, blockType) {

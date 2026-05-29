@@ -2,7 +2,7 @@ import os
 import re
 from typing import List
 
-from core.domain.block import AgentBlock, Block, HTTPBlock, LLMBlock, PythonScriptBlock
+from core.domain.block import AgentBlock, Block, BufferMemoryBlock, HTTPBlock, LLMBlock, PythonScriptBlock
 from core.domain.workflow import Workflow
 
 
@@ -68,9 +68,9 @@ class ExportService:
 
         if any(isinstance(b, AgentBlock) for b in blocks):
             imports.append("from langchain.agents import create_agent")
-            # MemorySaver is only needed when at least one agent enables memory.
-            if any(isinstance(b, AgentBlock) and b.config.get("memory_enabled") for b in blocks):
-                imports.append("from langgraph.checkpoint.memory import MemorySaver")
+
+        if any(isinstance(b, BufferMemoryBlock) for b in blocks):
+            imports.append("from langgraph.checkpoint.memory import MemorySaver")
 
         # HTTPBlock uses the requests library to make HTTP calls.
         if any(isinstance(b, HTTPBlock) for b in blocks):
@@ -115,8 +115,18 @@ class ExportService:
             except ValueError:
                 # Silently skip if a referenced tool block no longer exists.
                 pass
-        # e.g. tools = [search_tool, weather_tool]
         lines.append(f"tools = [{', '.join(tool_vars)}]")
+
+        # --- checkpointer alias ---
+        # BufferMemoryBlock.generate_code_snippet() produces `{var} = MemorySaver()`.
+        # AgentBlock's snippet references `checkpointer`, so we create the alias here.
+        memory_id = block.config.get("memory_block_id", "")
+        if memory_id:
+            try:
+                mem_var = _to_var(workflow.get_block(memory_id).name)
+                lines.append(f"checkpointer = {mem_var}")
+            except ValueError:
+                pass
 
         return lines
 

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from core.domain.block import AgentBlock, Block, HTTPBlock, LLMBlock, PythonScriptBlock
+from core.domain.block import AgentBlock, Block, BufferMemoryBlock, HTTPBlock, LLMBlock, PythonScriptBlock
 from core.domain.workflow import Workflow
 
 
@@ -72,3 +72,11 @@ class PythonScriptBlockCreator(BlockCreator):
     def _create_block(self) -> PythonScriptBlock:
         """Return a new PythonScriptBlock with factory defaults."""
         return PythonScriptBlock()
+
+
+class BufferMemoryBlockCreator(BlockCreator):
+    """Creates BufferMemoryBlock instances."""
+
+    def _create_block(self) -> BufferMemoryBlock:
+        """Return a new BufferMemoryBlock."""
+        return BufferMemoryBlock()

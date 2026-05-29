@@ -85,6 +85,26 @@
 /* right edge: dot center will be exactly on the right border */
 .block-ports-r { right: -9px; align-items: flex-end; }
 
+/* bottom edge: ports centered horizontally along the bottom border */
+.block-ports-b {
+    position: absolute;
+    bottom: -9px;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 20px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.port.bottom-port {
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+
 /* ── Port row ─────────────────────────────────────────────────── */
 .port {
     display: flex;

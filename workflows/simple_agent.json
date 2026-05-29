@@ -1,0 +1,81 @@
+{
+  "id": "simple-agent-0001-0002-0003-simpleagt04",
+  "name": "simple_agent",
+  "blocks": [
+    {
+      "id": "sa-llm-0001-0000-0000-0000-000000000001",
+      "type": "LLMBlock",
+      "name": "Claude Haiku",
+      "config": {
+        "api_url": "GENAI_API_URL",
+        "model_name": "GENAI_MODEL",
+        "temperature": 0.7,
+        "api_key_env_var": "GENAI_API_KEY"
+      },
+      "input_ports": [],
+      "output_ports": [
+        {
+          "id": "sa-llm-0001-0000-0000-0000-000000000002",
+          "name": "llm_output",
+          "direction": "output",
+          "data_type": "llm",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "sa-agt-0002-0000-0000-0000-000000000001",
+      "type": "AgentBlock",
+      "name": "Agent Simple",
+      "config": {
+        "system_prompt": "Tu es un assistant concis et utile. Reponds en francais.",
+        "user_prompt": "Explique en une phrase ce qu'est LangChain.",
+        "llm_block_id": "sa-llm-0001-0000-0000-0000-000000000001",
+        "tool_block_ids": [],
+        "memory_block_id": ""
+      },
+      "input_ports": [
+        {
+          "id": "sa-agt-0002-0000-0000-0000-000000000002",
+          "name": "llm_input",
+          "direction": "input",
+          "data_type": "llm",
+          "required": true
+        },
+        {
+          "id": "sa-agt-0002-0000-0000-0000-000000000003",
+          "name": "tool_input",
+          "direction": "input",
+          "data_type": "tool",
+          "required": false
+        },
+        {
+          "id": "sa-agt-0002-0000-0000-0000-000000000004",
+          "name": "memory_input",
+          "direction": "input",
+          "data_type": "memory",
+          "required": false,
+          "position": "bottom"
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "sa-agt-0002-0000-0000-0000-000000000005",
+          "name": "agent_output",
+          "direction": "output",
+          "data_type": "str",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "sa-conn-0001",
+      "source_block_id": "sa-llm-0001-0000-0000-0000-000000000001",
+      "source_port_id": "sa-llm-0001-0000-0000-0000-000000000002",
+      "target_block_id": "sa-agt-0002-0000-0000-0000-000000000001",
+      "target_port_id": "sa-agt-0002-0000-0000-0000-000000000002"
+    }
+  ]
+}

@@ -53,10 +53,16 @@ export class BlockUI {
         );
         const minH = Math.max(72, 40 + 28 * maxPorts);
 
+        const bottomPorts = [
+            ...(this.block.input_ports  ?? []).filter(p => p.position === 'bottom'),
+            ...(this.block.output_ports ?? []).filter(p => p.position === 'bottom'),
+        ];
+        const sidePadding = bottomPorts.length ? 18 : 0;
+
         const el = document.createElement('div');
         el.className   = 'block-ui' + (this.state.selectedBlockId === this.block.id ? ' selected' : '');
         el.dataset.blockId = this.block.id;
-        el.style.cssText   = `left:${pos.x}px;top:${pos.y}px;min-height:${minH}px`;
+        el.style.cssText   = `left:${pos.x}px;top:${pos.y}px;min-height:${minH + sidePadding}px`;
 
         el.innerHTML = `
             <div class="block-header">
@@ -65,10 +71,17 @@ export class BlockUI {
                 <button class="block-delete" title="Delete block">✕</button>
             </div>
             <div class="block-ports-l" id="pl-${this.block.id}"></div>
-            <div class="block-ports-r" id="pr-${this.block.id}"></div>`;
+            <div class="block-ports-r" id="pr-${this.block.id}"></div>
+            <div class="block-ports-b" id="pb-${this.block.id}"></div>`;
 
-        (this.block.input_ports  ?? []).forEach(p => el.querySelector(`#pl-${this.block.id}`).appendChild(this._portEl(p, 'input')));
-        (this.block.output_ports ?? []).forEach(p => el.querySelector(`#pr-${this.block.id}`).appendChild(this._portEl(p, 'output')));
+        (this.block.input_ports  ?? []).filter(p => p.position !== 'bottom')
+            .forEach(p => el.querySelector(`#pl-${this.block.id}`).appendChild(this._portEl(p, 'input')));
+        (this.block.output_ports ?? []).filter(p => p.position !== 'bottom')
+            .forEach(p => el.querySelector(`#pr-${this.block.id}`).appendChild(this._portEl(p, 'output')));
+        bottomPorts.forEach(p => {
+            const dir = (this.block.input_ports ?? []).includes(p) ? 'input' : 'output';
+            el.querySelector(`#pb-${this.block.id}`).appendChild(this._portEl(p, dir, true));
+        });
 
         // Select on click (ignore delete and port clicks)
         el.addEventListener('mousedown', e => {
@@ -85,9 +98,9 @@ export class BlockUI {
         return el;
     }
 
-    _portEl(port, dir) {
+    _portEl(port, dir, bottom = false) {
         const div = document.createElement('div');
-        div.className            = `port ${dir}-port`;
+        div.className            = `port ${dir}-port${bottom ? ' bottom-port' : ''}`;
         div.dataset.portId       = port.id;
         div.dataset.blockId      = this.block.id;
         div.dataset.direction    = dir;
@@ -95,8 +108,8 @@ export class BlockUI {
 
         const dot = '<span class="port-dot"></span>';
         const lbl = `<span class="port-label">${_esc(port.name)}</span>`;
-        // dot always first in DOM — row-reverse on output puts it visually to the right
-        div.innerHTML = dot + lbl;
+        // bottom ports: label above dot (column layout); side ports: dot first, row-reverse on output
+        div.innerHTML = bottom ? lbl + dot : dot + lbl;
 
         div.querySelector('.port-dot').addEventListener('click', e => {
             e.stopPropagation();

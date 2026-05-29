@@ -12,6 +12,11 @@ def _to_var_name(name: str) -> str:
     return name.lower().replace(" ", "_").replace("-", "_")
 
 
+# Keeps MemorySaver instances alive across requests so conversation history
+# persists between workflow runs for the lifetime of the Django process.
+_memory_savers: dict = {}
+
+
 class Block(ABC):
     """Abstract base class for all workflow blocks.
 
@@ -75,6 +80,7 @@ class Block(ABC):
             "AgentBlock": AgentBlock,
             "HTTPBlock": HTTPBlock,
             "PythonScriptBlock": PythonScriptBlock,
+            "BufferMemoryBlock": BufferMemoryBlock,
         }
         block_cls = mapping.get(data["type"])
         if block_cls is None:
@@ -210,15 +216,14 @@ class AgentBlock(Block):
         super().__init__(name, config, block_id)
         self.config.setdefault("system_prompt", "")
         self.config.setdefault("user_prompt", "")
-        self.config.setdefault("memory_enabled", False)
-        # llm_block_id and tool_block_ids are set by the user when wiring the canvas.
+        # llm_block_id, tool_block_ids and memory_block_id are synced from visual connections.
         self.config.setdefault("llm_block_id", "")
         self.config.setdefault("tool_block_ids", [])
+        self.config.setdefault("memory_block_id", "")
         self.input_ports = [
-            # llm_input is required: the agent cannot run without an LLM.
-            Port(name="llm_input", direction="input", data_type="llm", required=True),
-            # tool_input is optional: the agent can run with zero tools.
-            Port(name="tool_input", direction="input", data_type="tool", required=False),
+            Port(name="llm_input",    direction="input", data_type="llm",    required=True),
+            Port(name="tool_input",   direction="input", data_type="tool",   required=False),
+            Port(name="memory_input", direction="input", data_type="memory", required=False, position="bottom"),
         ]
         self.output_ports = [
             Port(name="agent_output", direction="output", data_type="str"),
@@ -229,11 +234,13 @@ class AgentBlock(Block):
         return super().validate() and bool(self.config.get("llm_block_id"))
 
     def get_dependencies(self) -> List[str]:
-        """Return the LLM block ID followed by all tool block IDs."""
+        """Return the LLM block ID, tool block IDs, and optional memory block ID."""
         deps = []
         if self.config.get("llm_block_id"):
             deps.append(self.config["llm_block_id"])
         deps.extend(self.config.get("tool_block_ids", []))
+        if self.config.get("memory_block_id"):
+            deps.append(self.config["memory_block_id"])
         return deps
 
     def execute(self, context: dict) -> Any:
@@ -259,18 +266,21 @@ class AgentBlock(Block):
             "model": llm,
             "tools": tools or None,
         }
-        # Pass the system prompt if one is configured.
         if self.config.get("system_prompt"):
             agent_kwargs["system_prompt"] = self.config["system_prompt"]
-        # Memory is implemented via a LangGraph MemorySaver checkpointer.
-        if self.config.get("memory_enabled"):
-            from langgraph.checkpoint.memory import MemorySaver
-            agent_kwargs["checkpointer"] = MemorySaver()
+        # Use a connected BufferMemoryBlock as the checkpointer when wired.
+        # LangGraph requires a thread_id in the invoke config when a checkpointer is present.
+        memory_block_id = self.config.get("memory_block_id", "")
+        invoke_config = None
+        if memory_block_id and memory_block_id in context:
+            agent_kwargs["checkpointer"] = context[memory_block_id]
+            invoke_config = {"configurable": {"thread_id": self.id}}
 
         agent = create_agent(**agent_kwargs)
-        result = agent.invoke({
-            "messages": [{"role": "user", "content": self.config["user_prompt"]}]
-        })
+        result = agent.invoke(
+            {"messages": [{"role": "user", "content": self.config["user_prompt"]}]},
+            config=invoke_config,
+        )
         # create_agent returns a state dict with a 'messages' list.
         # The last message is the AI's final response.
         messages = result.get("messages", [])
@@ -282,20 +292,37 @@ class AgentBlock(Block):
     def generate_code_snippet(self) -> str:
         var = _to_var_name(self.name)
         lines = []
-        # llm and tools are injected by ExportService before this snippet.
         lines.append(f"agent_{var} = create_agent(")
         lines.append(f"    model=llm,")
         lines.append(f"    tools=tools or None,")
         if self.config.get("system_prompt"):
             lines.append(f"    system_prompt={self.config['system_prompt']!r},")
-        if self.config.get("memory_enabled"):
-            lines.append(f"    checkpointer=MemorySaver(),")
+        if self.config.get("memory_block_id"):
+            lines.append(f"    checkpointer=checkpointer,")
         lines.append(f")")
-        # Double braces {{ }} produce literal { } in the f-string output.
-        lines.append(
-            f"result_{var} = agent_{var}.invoke({{\"messages\": [{{\"role\": \"user\", \"content\": {self.config['user_prompt']!r}}}]}})"
-        )
-        lines.append(f"print(result_{var}['messages'][-1].content)")
+
+        if self.config.get("memory_block_id"):
+            # With memory: generate an interactive conversation loop.
+            # The thread_id keeps all messages in the same conversation thread.
+            lines.append(f'print("Agent pret. Tapez vos messages (Ctrl+C pour quitter).")')
+            lines.append(f'while True:')
+            lines.append(f'    try:')
+            lines.append(f'        user_input = input("Vous : ").strip()')
+            lines.append(f'    except KeyboardInterrupt:')
+            lines.append(f'        break')
+            lines.append(f'    if not user_input:')
+            lines.append(f'        continue')
+            lines.append(f'    result_{var} = agent_{var}.invoke(')
+            lines.append(f'        {{"messages": [{{"role": "user", "content": user_input}}]}},')
+            lines.append(f'        config={{"configurable": {{"thread_id": "session_1"}}}},')
+            lines.append(f'    )')
+            lines.append(f'    print("Agent :", result_{var}["messages"][-1].content)')
+        else:
+            lines.append(
+                f"result_{var} = agent_{var}.invoke({{\"messages\": [{{\"role\": \"user\", \"content\": {self.config['user_prompt']!r}}}]}})"
+            )
+            lines.append(f"print(result_{var}['messages'][-1].content)")
+
         return "\n".join(lines)
 
 
@@ -557,3 +584,36 @@ class PythonScriptBlock(Block):
             except Exception:
                 pass
         return script
+
+
+# ---------------------------------------------------------------------------
+# BufferMemoryBlock
+# ---------------------------------------------------------------------------
+
+class BufferMemoryBlock(Block):
+    """Provides a LangGraph MemorySaver checkpointer to a connected AgentBlock.
+
+    Connect its output port to the memory_input port (bottom) of an AgentBlock
+    to enable conversation memory for that agent.
+    """
+
+    def __init__(self, name: str = "Buffer Memory", config: dict = None, block_id: str = None):
+        super().__init__(name, config, block_id)
+        self.input_ports = []
+        self.output_ports = [
+            Port(name="memory_output", direction="output", data_type="memory"),
+        ]
+
+    def validate(self) -> bool:
+        return True
+
+    def execute(self, context: dict) -> Any:
+        """Return the persistent MemorySaver for this block, creating it on first run."""
+        from langgraph.checkpoint.memory import MemorySaver
+        if self.id not in _memory_savers:
+            _memory_savers[self.id] = MemorySaver()
+        return _memory_savers[self.id]
+
+    def generate_code_snippet(self) -> str:
+        var = _to_var_name(self.name)
+        return f"{var} = MemorySaver()"
