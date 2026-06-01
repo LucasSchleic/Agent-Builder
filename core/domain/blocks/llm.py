@@ -1,5 +1,10 @@
 import os
+import re
 from typing import Any
+
+# Env var names are uppercase letters, digits and underscores (POSIX convention).
+# This excludes model names like "anthropic.claude-3-haiku-20240307-v1:0".
+_ENV_VAR_RE = re.compile(r'^[A-Z][A-Z0-9_]*$')
 
 from core.domain.blocks.base import Block, _to_var_name
 from core.domain.port import Port
@@ -32,9 +37,8 @@ class LLMBlock(Block):
 
     @staticmethod
     def _resolve(value: str) -> str:
-        """Resolve a config value: if it looks like an env var name (no spaces, no '://'),
-        return os.getenv(value) or the literal value as fallback."""
-        if value and " " not in value and "://" not in value:
+        """Return os.getenv(value) if value is an env var name, else return it as-is."""
+        if value and _ENV_VAR_RE.match(value):
             resolved = os.getenv(value)
             if resolved:
                 return resolved
@@ -44,10 +48,10 @@ class LLMBlock(Block):
     def _snippet_value(value: str) -> str:
         """Return a Python expression for a config value.
 
-        If the value looks like an env var name, emit os.getenv(...) so the
-        export service can resolve it to the actual value at export time.
+        Emits os.getenv(...) only for proper env var names (UPPER_SNAKE_CASE),
+        so model names like 'anthropic.claude-3-haiku-20240307-v1:0' are kept literal.
         """
-        if value and " " not in value and "://" not in value:
+        if value and _ENV_VAR_RE.match(value):
             return f"os.getenv({value!r})"
         return repr(value)
 
