@@ -11,15 +11,17 @@
  */
 export class Toolbar {
     constructor(state, api, modal) {
-        this.state  = state;
-        this.api    = api;
-        this.modal  = modal;
-        this.canvas = null;     // injected by main.js
-        this.wfPanel = null;    // injected by main.js
+        this.state      = state;
+        this.api        = api;
+        this.modal      = modal;
+        this.canvas     = null; // injected by main.js
+        this.wfPanel    = null; // injected by main.js
+        this.runConsole = null; // injected by main.js
     }
 
-    setCanvas(canvas)          { this.canvas  = canvas; }
-    setWorkflowListPanel(wfp)  { this.wfPanel = wfp; }
+    setCanvas(canvas)          { this.canvas     = canvas; }
+    setWorkflowListPanel(wfp)  { this.wfPanel    = wfp; }
+    setRunConsole(rc)          { this.runConsole  = rc; }
 
     init() {
         document.getElementById('btn-new').addEventListener('click',     () => this.new_workflow());
@@ -137,31 +139,6 @@ export class Toolbar {
             this.modal.show('Nothing to run', 'Create a workflow first.', [{ label: 'OK' }]);
             return;
         }
-        const data = await this.api.post('/api/workflow/run/', { workflow: this.state.workflow });
-        if (data.error) { this.modal.show('Run Error', data.error, [{ label: 'OK' }]); return; }
-        this.modal.show('Run Result', this._formatContext(data.context), [{ label: 'OK' }], true);
-    }
-
-    _formatContext(context) {
-        const blocks  = this.state.workflow?.blocks ?? [];
-        const nameOf  = id => (blocks.find(b => b.id === id)?.name) ?? id;
-        const sep     = '─'.repeat(48);
-        const lines   = [];
-        for (const [id, value] of Object.entries(context)) {
-            lines.push(`▶ ${nameOf(id)}`);
-            if (value === null || value === undefined) {
-                lines.push('  (no output)');
-            } else if (typeof value === 'string') {
-                // Plain text — indent each line for readability
-                lines.push(value.split('\n').map(l => '  ' + l).join('\n'));
-            } else {
-                // Object / array (e.g. raw HTTP response) — compact + truncated
-                const raw = JSON.stringify(value, null, 2);
-                const preview = raw.length > 300 ? raw.slice(0, 300) + '\n  …(truncated)' : raw;
-                lines.push(preview.split('\n').map(l => '  ' + l).join('\n'));
-            }
-            lines.push(sep);
-        }
-        return lines.join('\n');
+        await this.runConsole.run(this.state.workflow);
     }
 }

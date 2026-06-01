@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
@@ -306,6 +306,31 @@ def export_workflow(request):
     except Exception as exc:
         return JsonResponse({"error": str(exc)}, status=400)
     return JsonResponse({"script": script, "path": str(script_path)})
+
+
+@csrf_exempt
+@require_POST
+def run_workflow_stream(request):
+    """Stream workflow execution progress as Server-Sent Events.
+
+    POST /api/workflow/run/stream/
+    Body: {"workflow": {...}}
+    Response: text/event-stream — one SSE message per block lifecycle event.
+
+    Using POST (not GET) so the full workflow JSON can be sent in the body
+    without URI length limits.  The frontend reads the stream via fetch() +
+    ReadableStream rather than EventSource, which supports POST natively.
+    """
+    data = _load_body(request)
+    wf = _workflow_from_body(data)
+    response = StreamingHttpResponse(
+        _executor.execute_workflow_stream(wf),
+        content_type="text/event-stream",
+    )
+    response["Cache-Control"] = "no-cache"
+    # Disable proxy / nginx buffering so events reach the browser immediately.
+    response["X-Accel-Buffering"] = "no"
+    return response
 
 
 @csrf_exempt

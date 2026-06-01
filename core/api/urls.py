@@ -19,4 +19,5 @@ urlpatterns = [
     # Export & run
     path("workflow/export/", views.export_workflow, name="export_workflow"),
     path("workflow/run/", views.run_workflow, name="run_workflow"),
+    path("workflow/run/stream/", views.run_workflow_stream, name="run_workflow_stream"),
 ]

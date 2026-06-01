@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="{% static 'css/block_ui.css' %}">
 <link rel="stylesheet" href="{% static 'css/config_panel.css' %}">
 <link rel="stylesheet" href="{% static 'css/modal.css' %}">
+<link rel="stylesheet" href="{% static 'css/console.css' %}">
 </head>
 <body>
 
@@ -47,6 +48,15 @@
                 <path id="preview-line" d=""/>
             </svg>
             <div id="canvas-hint">CANVAS</div>
+        </div>
+
+        <!-- CONSOLE PANEL — slides up from bottom on Run -->
+        <div id="console-panel">
+            <div id="console-header">
+                <span>Console</span>
+                <button id="console-close">✕</button>
+            </div>
+            <div id="console-output"></div>
         </div>
     </div>
 

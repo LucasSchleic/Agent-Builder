@@ -1,0 +1,181 @@
+{
+  "id": "1fe49130-43c2-48f4-9465-39c53267677a",
+  "name": "analyse_utilisateur",
+  "blocks": [
+    {
+      "id": "3fc37829-52be-46e4-895f-ca68d25bddad",
+      "type": "LLMBlock",
+      "name": "LLM Capgemini",
+      "config": {
+        "api_url": "https://openai.generative-eu.engine.capgemini.com/v1",
+        "model_name": "anthropic.claude-3-haiku-20240307-v1:0",
+        "temperature": 0.7,
+        "api_key_env_var": "GENAI_API_KEY"
+      },
+      "input_ports": [],
+      "output_ports": [
+        { "id": "bbb58234-8e23-4179-bbde-68c88d8bf28d", "name": "llm_output", "direction": "output", "data_type": "llm", "required": false }
+      ]
+    },
+    {
+      "id": "eff0e54d-fea4-493a-af9f-f6d0c6f50e73",
+      "type": "BufferMemoryBlock",
+      "name": "Memoire Conversation",
+      "config": {},
+      "input_ports": [],
+      "output_ports": [
+        { "id": "dedc209f-787f-4927-994f-e260e53918bc", "name": "memory_output", "direction": "output", "data_type": "memory", "required": false }
+      ]
+    },
+    {
+      "id": "da220717-1547-49ac-b1ca-be295de98e94",
+      "type": "HTTPBlock",
+      "name": "Fetch Post",
+      "config": {
+        "method": "GET",
+        "url": "https://jsonplaceholder.typicode.com/posts/1",
+        "headers": {},
+        "body": {}
+      },
+      "input_ports": [
+        { "id": "b3e1e9af-368e-4f39-8732-32e11e429288", "name": "http_input", "direction": "input", "data_type": "any", "required": false }
+      ],
+      "output_ports": [
+        { "id": "2a15334f-b8e7-493f-aa36-b635c2c8e564", "name": "http_output", "direction": "output", "data_type": "dict", "required": false }
+      ]
+    },
+    {
+      "id": "cb073623-0c43-4b3d-865d-3ac4831f7ca1",
+      "type": "HTTPBlock",
+      "name": "Fetch User",
+      "config": {
+        "method": "GET",
+        "url": "https://jsonplaceholder.typicode.com/users/1",
+        "headers": {},
+        "body": {}
+      },
+      "input_ports": [
+        { "id": "9755aa1f-9263-4f18-82f3-81a6996fdf2c", "name": "http_input", "direction": "input", "data_type": "any", "required": false }
+      ],
+      "output_ports": [
+        { "id": "d82e78c6-de9d-4f20-b05a-4e3ff7285141", "name": "http_output", "direction": "output", "data_type": "dict", "required": false }
+      ]
+    },
+    {
+      "id": "3317c00c-6b68-44a4-8f62-a36bc43ae879",
+      "type": "HTTPBlock",
+      "name": "Fetch Comments",
+      "config": {
+        "method": "GET",
+        "url": "https://jsonplaceholder.typicode.com/posts/1/comments",
+        "headers": {},
+        "body": {}
+      },
+      "input_ports": [
+        { "id": "99b31881-7edc-4da3-94bd-36a3b6ac434a", "name": "http_input", "direction": "input", "data_type": "any", "required": false }
+      ],
+      "output_ports": [
+        { "id": "359408cb-ead9-4cc5-8b78-1bee8208bd07", "name": "http_output", "direction": "output", "data_type": "dict", "required": false }
+      ]
+    },
+    {
+      "id": "87a33940-d862-4a98-894c-1cc9c78052f0",
+      "type": "PythonScriptBlock",
+      "name": "Compiler Donnees",
+      "config": {
+        "function_name": "compiler_donnees",
+        "script_code": "def compiler_donnees(post_data, user_data):\n    titre = post_data.get('title', 'N/A') if isinstance(post_data, dict) else str(post_data)\n    corps = post_data.get('body', 'N/A') if isinstance(post_data, dict) else ''\n    nom = user_data.get('name', 'N/A') if isinstance(user_data, dict) else str(user_data)\n    email = user_data.get('email', 'N/A') if isinstance(user_data, dict) else ''\n    ville = user_data.get('address', {}).get('city', 'N/A') if isinstance(user_data, dict) else ''\n    entreprise = user_data.get('company', {}).get('name', 'N/A') if isinstance(user_data, dict) else ''\n    return f\"Auteur: {nom} | {email} | {ville} | {entreprise}\\nTitre du post: {titre}\\nContenu: {corps}\"\n",
+        "detected_inputs": ["post_data", "user_data"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        { "id": "4e1016ab-5e8e-47f5-afce-50f6e201d126", "name": "post_data", "direction": "input", "data_type": "any", "required": true },
+        { "id": "b371b79d-4daa-412c-b883-df785bf75988", "name": "user_data", "direction": "input", "data_type": "any", "required": true }
+      ],
+      "output_ports": [
+        { "id": "a340149d-52c1-426b-a09e-d126a24e0aa8", "name": "output", "direction": "output", "data_type": "any", "required": false }
+      ]
+    },
+    {
+      "id": "ea2f4532-4662-4697-9d9d-4af4c0c24a8d",
+      "type": "PythonScriptBlock",
+      "name": "Stats Texte",
+      "config": {
+        "function_name": "stats_texte",
+        "script_code": "def stats_texte(texte_compile):\n    if not isinstance(texte_compile, str):\n        texte_compile = str(texte_compile)\n    mots = len(texte_compile.split())\n    lignes = len(texte_compile.splitlines())\n    caracteres = len(texte_compile)\n    print(f'[Stats] {mots} mots, {lignes} lignes, {caracteres} caracteres')\n    return f\"=== Rapport de donnees ===\\n{texte_compile}\\n\\n--- Statistiques ---\\nMots: {mots} | Lignes: {lignes} | Caracteres: {caracteres}\"\n",
+        "detected_inputs": ["texte_compile"],
+        "detected_outputs": ["output"]
+      },
+      "input_ports": [
+        { "id": "b60e1b6e-1d88-4224-a5f9-217ed30d9be0", "name": "texte_compile", "direction": "input", "data_type": "any", "required": true }
+      ],
+      "output_ports": [
+        { "id": "f9f44f92-b812-4e2e-bab7-1b850061f45e", "name": "output", "direction": "output", "data_type": "any", "required": false }
+      ]
+    },
+    {
+      "id": "69029d74-a2e3-4b90-9177-f3114553c5e4",
+      "type": "AgentBlock",
+      "name": "Agent Redacteur",
+      "config": {
+        "system_prompt": "Tu es un assistant analyste expert. Tu disposes d'un outil pour recuperer les commentaires d'un article. Utilise-le pour enrichir ton analyse, puis redige un rapport professionnel clair et structure en francais.",
+        "user_prompt": "Un utilisateur nomme Leanne Graham (entreprise Romaguera-Crona) a publie un article intitule 'sunt aut facere repellat provident occaecati excepturi optio reprehenderit'. Utilise l'outil disponible pour recuperer les commentaires de cet article, puis redige un rapport professionnel synthetisant le profil de cet auteur, la reception de son article et des recommandations.",
+        "llm_block_id": "3fc37829-52be-46e4-895f-ca68d25bddad",
+        "tool_block_ids": ["3317c00c-6b68-44a4-8f62-a36bc43ae879"],
+        "memory_block_id": "eff0e54d-fea4-493a-af9f-f6d0c6f50e73"
+      },
+      "input_ports": [
+        { "id": "08506b0e-ca17-41bf-bf95-cff510e6d063", "name": "llm_input",    "direction": "input", "data_type": "llm",    "required": true },
+        { "id": "0fa917ba-9ab5-4fa8-b9bd-043836c38e83", "name": "tool_input",   "direction": "input", "data_type": "tool",   "required": false },
+        { "id": "cfdbdb14-1aa7-4877-959d-05503e4fbfe8", "name": "memory_input", "direction": "input", "data_type": "memory", "required": false, "position": "bottom" }
+      ],
+      "output_ports": [
+        { "id": "c45ffdcb-915a-4b56-9661-f8daa255ac49", "name": "agent_output", "direction": "output", "data_type": "str", "required": false }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "f5ea364c-bd98-4b24-b5df-282aea5ec113",
+      "source_block_id": "3fc37829-52be-46e4-895f-ca68d25bddad",
+      "source_port_id": "bbb58234-8e23-4179-bbde-68c88d8bf28d",
+      "target_block_id": "69029d74-a2e3-4b90-9177-f3114553c5e4",
+      "target_port_id": "08506b0e-ca17-41bf-bf95-cff510e6d063"
+    },
+    {
+      "id": "6def6366-0842-40e4-93a5-fcad7aaeecd7",
+      "source_block_id": "eff0e54d-fea4-493a-af9f-f6d0c6f50e73",
+      "source_port_id": "dedc209f-787f-4927-994f-e260e53918bc",
+      "target_block_id": "69029d74-a2e3-4b90-9177-f3114553c5e4",
+      "target_port_id": "cfdbdb14-1aa7-4877-959d-05503e4fbfe8"
+    },
+    {
+      "id": "9c4ff1a9-9a1e-4c4b-b59f-a28874b0bd06",
+      "source_block_id": "da220717-1547-49ac-b1ca-be295de98e94",
+      "source_port_id": "2a15334f-b8e7-493f-aa36-b635c2c8e564",
+      "target_block_id": "87a33940-d862-4a98-894c-1cc9c78052f0",
+      "target_port_id": "4e1016ab-5e8e-47f5-afce-50f6e201d126"
+    },
+    {
+      "id": "50db4457-3fd0-4d30-8973-b689781457bc",
+      "source_block_id": "cb073623-0c43-4b3d-865d-3ac4831f7ca1",
+      "source_port_id": "d82e78c6-de9d-4f20-b05a-4e3ff7285141",
+      "target_block_id": "87a33940-d862-4a98-894c-1cc9c78052f0",
+      "target_port_id": "b371b79d-4daa-412c-b883-df785bf75988"
+    },
+    {
+      "id": "491f1abc-c020-4ec9-a0b9-c9e291f83733",
+      "source_block_id": "87a33940-d862-4a98-894c-1cc9c78052f0",
+      "source_port_id": "a340149d-52c1-426b-a09e-d126a24e0aa8",
+      "target_block_id": "ea2f4532-4662-4697-9d9d-4af4c0c24a8d",
+      "target_port_id": "b60e1b6e-1d88-4224-a5f9-217ed30d9be0"
+    },
+    {
+      "id": "05419a1e-b4af-42b5-b946-d64898766c72",
+      "source_block_id": "3317c00c-6b68-44a4-8f62-a36bc43ae879",
+      "source_port_id": "359408cb-ead9-4cc5-8b78-1bee8208bd07",
+      "target_block_id": "69029d74-a2e3-4b90-9177-f3114553c5e4",
+      "target_port_id": "0fa917ba-9ab5-4fa8-b9bd-043836c38e83"
+    }
+  ]
+}

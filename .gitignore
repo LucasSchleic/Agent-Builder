@@ -35,10 +35,12 @@ media/
 .DS_Store
 Thumbs.db
 
-# Claude Code — settings.json contains sensitive info
+# Claude Code — settings files may contain sensitive info
 .claude/settings.json
+.claude/settings.local.json
 
 # Generated workflow outputs — runtime artifacts, not source
 workflows/rapport_*.txt
 workflows/*.py
 email_drafts/
+rapports/

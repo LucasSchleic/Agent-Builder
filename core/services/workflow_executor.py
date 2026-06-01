@@ -1,4 +1,5 @@
-from typing import Any, List
+import json
+from typing import Any, Generator, List
 
 from core.domain.block import Block
 from core.domain.workflow import Workflow
@@ -107,6 +108,72 @@ class WorkflowExecutor:
         # Populate port-name keys in context before the block reads from it.
         self.prepare_inputs(block, context)
         return block.execute(context)
+
+    # ------------------------------------------------------------------
+    # Streaming execution (SSE)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _sse(data: dict) -> str:
+        """Format a dict as a single SSE message."""
+        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+    def execute_workflow_stream(self, workflow: Workflow) -> Generator[str, None, None]:
+        """Execute blocks one by one and yield SSE progress events.
+
+        Each yielded string is a complete SSE message ready to be written
+        to a StreamingHttpResponse.  The frontend reads these events and
+        updates the console panel in real time.
+
+        Event types:
+            start       — workflow started, includes total block count
+            block_start — a block has begun executing
+            block_done  — a block finished, includes its output
+            block_error — a block raised an exception (stream stops)
+            done        — all blocks finished successfully
+            error       — workflow-level error (validation failure)
+        """
+        if not workflow.validate():
+            yield self._sse({"type": "error", "error": f"Workflow '{workflow.name}' is invalid — check block configurations."})
+            return
+
+        self._workflow = workflow
+        blocks = self.topological_sort(workflow)
+
+        yield self._sse({"type": "start", "workflow": workflow.name, "total": len(blocks)})
+
+        _serializable = (str, int, float, bool, list, dict, type(None))
+        context: dict = {}
+
+        for block in blocks:
+            yield self._sse({
+                "type": "block_start",
+                "block_id": block.id,
+                "block_name": block.name,
+                "block_type": block.__class__.__name__,
+            })
+            try:
+                self.prepare_inputs(block, context)
+                result = block.execute(context)
+                context[block.id] = result
+                safe = result if isinstance(result, _serializable) else str(result)
+                yield self._sse({
+                    "type": "block_done",
+                    "block_id": block.id,
+                    "block_name": block.name,
+                    "output": safe,
+                })
+            except Exception as exc:
+                yield self._sse({
+                    "type": "block_error",
+                    "block_id": block.id,
+                    "block_name": block.name,
+                    "error": str(exc),
+                })
+                return
+
+        safe_context = {k: v if isinstance(v, _serializable) else str(v) for k, v in context.items()}
+        yield self._sse({"type": "done", "context": safe_context})
 
     # ------------------------------------------------------------------
     # Workflow execution

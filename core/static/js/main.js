@@ -12,6 +12,7 @@ import { Toolbox }            from './toolbox.js';
 import { Toolbar }            from './toolbar.js';
 import { WorkflowListPanel }  from './workflow_list_panel.js';
 import { ConfigPanel }        from './config_panel.js';
+import { RunConsole }         from './console.js';
 
 // Singletons
 const api    = new Api();
@@ -23,6 +24,7 @@ const configPanel = new ConfigPanel(AppState, api, modal);
 const toolbox     = new Toolbox(AppState, api, modal);
 const wfPanel     = new WorkflowListPanel(AppState, api, modal);
 const toolbar     = new Toolbar(AppState, api, modal);
+const runConsole  = new RunConsole();
 
 // Wire cross-references (avoids circular module imports)
 canvas.setConfigPanel(configPanel);
@@ -31,6 +33,7 @@ toolbox.setCanvas(canvas);
 wfPanel.setCanvas(canvas);
 toolbar.setCanvas(canvas);
 toolbar.setWorkflowListPanel(wfPanel);
+toolbar.setRunConsole(runConsole);
 
 // Boot
 canvas.init();
