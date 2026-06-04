@@ -126,3 +126,19 @@
 }
 .config-save-btn:hover  { background: var(--accent2); transform: translateY(-1px); }
 .config-save-btn:active { transform: translateY(0); }
+
+.config-generalize-btn {
+    width: 100%;
+    padding: 7px;
+    background: transparent;
+    color: #a855f7;
+    border: 1px solid #a855f7;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+.config-generalize-btn:hover  { background: #a855f720; transform: translateY(-1px); }
+.config-generalize-btn:active { transform: translateY(0); }

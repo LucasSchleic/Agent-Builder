@@ -49,6 +49,19 @@
 .toolbox-btn:active { cursor: grabbing; }
 .toolbox-btn.dragging { opacity: 0.45; }
 
+.toolbox-section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+    padding: 8px 2px 4px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+}
+
+.toolbox-btn-custom::before { background: #a855f7; }
+
 #workflow-list-panel {
     flex: 1;
     overflow-y: auto;

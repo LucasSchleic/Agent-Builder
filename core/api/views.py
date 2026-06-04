@@ -20,6 +20,7 @@ from core.services.workflow_executor import WorkflowExecutor
 from core.services.workflow_service import WorkflowService
 
 WORKFLOWS_DIR = Path(settings.BASE_DIR) / "workflows"
+CUSTOM_BLOCKS_DIR = Path(settings.BASE_DIR) / "custom_blocks"
 
 # Module-level singletons: one instance per process avoids repeated construction overhead.
 _service = WorkflowService()
@@ -39,6 +40,11 @@ _CREATORS = {
 def _ensure_workflows_dir() -> None:
     """Create the workflows directory if it does not already exist."""
     WORKFLOWS_DIR.mkdir(exist_ok=True)
+
+
+def _ensure_custom_blocks_dir() -> None:
+    """Create the custom_blocks directory if it does not already exist."""
+    CUSTOM_BLOCKS_DIR.mkdir(exist_ok=True)
 
 
 def _sync_agent_config(wf: Workflow, block_id: str) -> None:
@@ -71,6 +77,70 @@ def _sync_agent_config(wf: Workflow, block_id: str) -> None:
     block.config["llm_block_id"] = llm_id
     block.config["tool_block_ids"] = tool_ids
     block.config["memory_block_id"] = memory_id
+
+
+# ---------------------------------------------------------------------------
+# Custom block templates
+# ---------------------------------------------------------------------------
+
+@require_GET
+def list_custom_blocks(request):
+    """Return all saved PythonScriptBlock templates.
+
+    GET /api/blocks/custom/
+    Response: {"blocks": [{"filename": "...", "data": {...}}, ...]}
+    """
+    _ensure_custom_blocks_dir()
+    blocks = []
+    for p in sorted(CUSTOM_BLOCKS_DIR.glob("*.json")):
+        with p.open(encoding="utf-8") as f:
+            data = json.load(f)
+        blocks.append({"filename": p.name, "data": data})
+    return JsonResponse({"blocks": blocks})
+
+
+@csrf_exempt
+@require_POST
+def save_custom_block(request):
+    """Persist a PythonScriptBlock as a reusable template.
+
+    POST /api/blocks/save_custom/
+    Body: {"block": {...}}
+    Response: {"status": "ok", "filename": "..."}
+    """
+    from core.domain.blocks.base import _to_var_name
+    payload = _load_body(request)
+    block_data = payload.get("block")
+    if not block_data:
+        return JsonResponse({"error": "Missing 'block' in body."}, status=400)
+    _ensure_custom_blocks_dir()
+    slug = _to_var_name(block_data.get("name", "custom_block"))
+    path = CUSTOM_BLOCKS_DIR / f"{slug}.json"
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(block_data, f, indent=2, ensure_ascii=False)
+    return JsonResponse({"status": "ok", "filename": f"{slug}.json"})
+
+
+@csrf_exempt
+@require_POST
+def add_custom_block(request):
+    """Add a PythonScriptBlock from a saved template to the workflow.
+
+    POST /api/workflow/block/add_custom/
+    Body: {"workflow": {...}, "template": {...}}
+    Response: {"workflow": {...}}
+    """
+    import uuid
+    from core.domain.block import Block
+    data = _load_body(request)
+    wf = _workflow_from_body(data)
+    template = data.get("template", {})
+    if not template:
+        return JsonResponse({"error": "Missing 'template' in body."}, status=400)
+    block = Block.from_dict(template)
+    block.id = str(uuid.uuid4())
+    wf.add_block(block)
+    return JsonResponse({"workflow": wf.to_dict()})
 
 
 def _load_body(request) -> dict:

@@ -30,9 +30,14 @@ export class ConfigPanel {
             `<div class="config-block-title">${_esc(block.name)}<span>${_esc(block.type)}</span></div>` +
             `<div class="config-field"><label>Name</label><input type="text" id="cf-block-name" value="${_esc(block.name)}" spellcheck="false"></div>` +
             fields.map(f => this._fieldHtml(f, block.config)).join('') +
-            `<button class="config-save-btn" id="cfg-save">Save</button>`;
+            `<button class="config-save-btn" id="cfg-save">Save</button>` +
+            (block.type === 'PythonScriptBlock'
+                ? `<button class="config-generalize-btn" id="cfg-generalize" title="Sauvegarder ce bloc comme modèle réutilisable">Généraliser</button>`
+                : '');
 
         document.getElementById('cfg-save').addEventListener('click', () => this._save(block, fields));
+        const genBtn = document.getElementById('cfg-generalize');
+        if (genBtn) genBtn.addEventListener('click', () => this._generalize(block));
     }
 
     // ── Field definitions per block type ──────────────────────────────────
@@ -101,6 +106,19 @@ export class ConfigPanel {
         return `<div class="config-field"><label>${f.label}</label>
                     <input type="${f.type}" id="cf-${f.key}" value="${_esc(String(val ?? ''))}">
                 </div>`;
+    }
+
+    // ── Generalize (save as reusable template) ────────────────────────────
+
+    async _generalize(block) {
+        const data = await this.api.post('/api/blocks/save_custom/', { block });
+        if (data.error) { this.modal.show('Erreur', data.error, [{ label: 'OK' }]); return; }
+        this.modal.show(
+            'Bloc sauvegardé',
+            `"${block.name}" est maintenant disponible dans la toolbox sous "Blocs sauvegardés".`,
+            [{ label: 'OK' }],
+        );
+        document.dispatchEvent(new CustomEvent('customBlockSaved'));
     }
 
     // ── Save config ────────────────────────────────────────────────────────

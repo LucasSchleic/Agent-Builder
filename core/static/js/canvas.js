@@ -227,17 +227,30 @@ export class Canvas {
         this._el.addEventListener('drop', async e => {
             e.preventDefault();
             this._el.classList.remove('drag-over');
+            if (!this.state.workflow) return;
 
-            const blockType = e.dataTransfer.getData('text/plain');
-            if (!blockType || !this.state.workflow) return;
-
-            // Calculate drop position relative to canvas
-            const rect = this._el.getBoundingClientRect();
+            const rect  = this._el.getBoundingClientRect();
             const dropX = Math.max(0, e.clientX - rect.left - 85);
             const dropY = Math.max(0, e.clientY - rect.top  - 20);
-
             const oldIds = new Set(this.state.workflow.blocks.map(b => b.id));
-            const data   = await this.api.post('/api/workflow/block/add/', {
+
+            const customRaw = e.dataTransfer.getData('application/custom-block');
+            if (customRaw) {
+                const template = JSON.parse(customRaw);
+                const data = await this.api.post('/api/workflow/block/add_custom/', {
+                    workflow: this.state.workflow, template,
+                });
+                if (data.error) { this.modal.show('Error', data.error, [{ label: 'OK' }]); return; }
+                const newBlock = data.workflow.blocks.find(b => !oldIds.has(b.id));
+                if (newBlock) this.state.positions[newBlock.id] = { x: dropX, y: dropY };
+                this.update(data.workflow);
+                return;
+            }
+
+            const blockType = e.dataTransfer.getData('text/plain');
+            if (!blockType) return;
+
+            const data = await this.api.post('/api/workflow/block/add/', {
                 workflow: this.state.workflow, block_type: blockType,
             });
             if (data.error) { this.modal.show('Error', data.error, [{ label: 'OK' }]); return; }

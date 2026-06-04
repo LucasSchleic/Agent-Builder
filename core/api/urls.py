@@ -16,6 +16,10 @@ urlpatterns = [
     # Connection operations
     path("workflow/connection/add/", views.add_connection, name="add_connection"),
     path("workflow/connection/remove/", views.remove_connection, name="remove_connection"),
+    # Custom block templates
+    path("blocks/custom/", views.list_custom_blocks, name="list_custom_blocks"),
+    path("blocks/save_custom/", views.save_custom_block, name="save_custom_block"),
+    path("workflow/block/add_custom/", views.add_custom_block, name="add_custom_block"),
     # Export & run
     path("workflow/export/", views.export_workflow, name="export_workflow"),
     path("workflow/run/", views.run_workflow, name="run_workflow"),

@@ -45,6 +45,58 @@ export class Toolbox {
 
             btn.addEventListener('dragend', () => btn.classList.remove('dragging'));
         });
+
+        this.loadCustomBlocks();
+        document.addEventListener('customBlockSaved', () => this.loadCustomBlocks());
+    }
+
+    async loadCustomBlocks() {
+        const container = document.getElementById('toolbox-custom');
+        if (!container) return;
+        const data = await this.api.get('/api/blocks/custom/');
+        container.innerHTML = '';
+        if (!data.blocks || !data.blocks.length) return;
+
+        const title = document.createElement('div');
+        title.className = 'toolbox-section-title';
+        title.textContent = 'Blocs sauvegardés';
+        container.appendChild(title);
+
+        data.blocks.forEach(item => {
+            const btn = document.createElement('button');
+            btn.className = 'toolbox-btn toolbox-btn-custom';
+            btn.draggable = true;
+            btn.dataset.template = JSON.stringify(item.data);
+            btn.textContent = item.data.name || item.filename;
+            this._bindCustomBtn(btn);
+            container.appendChild(btn);
+        });
+    }
+
+    _bindCustomBtn(btn) {
+        btn.addEventListener('click', async () => {
+            if (!this.state.workflow) {
+                this.modal.show('No workflow', 'Create or load a workflow first.', [{ label: 'OK' }]);
+                return;
+            }
+            await this._addCustomBlock(this.state.workflow, JSON.parse(btn.dataset.template));
+        });
+
+        btn.addEventListener('dragstart', e => {
+            if (!this.state.workflow) { e.preventDefault(); return; }
+            e.dataTransfer.setData('application/custom-block', btn.dataset.template);
+            e.dataTransfer.setData('text/plain', '');
+            e.dataTransfer.effectAllowed = 'copy';
+            btn.classList.add('dragging');
+        });
+
+        btn.addEventListener('dragend', () => btn.classList.remove('dragging'));
+    }
+
+    async _addCustomBlock(workflow, template) {
+        const data = await this.api.post('/api/workflow/block/add_custom/', { workflow, template });
+        if (data.error) { this.modal.show('Error', data.error, [{ label: 'OK' }]); return; }
+        this.canvas.update(data.workflow);
     }
 
     list_available_block_types() {

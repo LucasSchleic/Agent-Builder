@@ -44,3 +44,6 @@ workflows/rapport_*.txt
 workflows/*.py
 email_drafts/
 rapports/
+
+# Custom block templates — user-local, not versionned (except .gitkeep)
+custom_blocks/*.json
