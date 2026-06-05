@@ -1,0 +1,79 @@
+{
+  "id": "ger-wf02-0000-0000-0000-000000000001",
+  "name": "gmail_envoyer_reponses",
+  "blocks": [
+    {
+      "id": "ger-scr-0001-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Lire Reponses TXT",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run():\n    import os, re\n    OUTPUT_DIR = 'email_drafts'\n    path = f\"{OUTPUT_DIR}/reponses.txt\"\n    if not os.path.exists(path):\n        print(f\"[ERREUR] Fichier introuvable: {path}\")\n        print(\"Lancez d'abord gmail_lire_et_repondre.\")\n        return []\n    with open(path, 'r', encoding='utf-8') as f:\n        content = f.read()\n    # Decouper sur les blocs \"=== MAIL N ===\"\n    blocks = re.split(r'(?=^=== MAIL \\d+)', content, flags=re.MULTILINE)\n    validated = []\n    for block in blocks:\n        if not block.strip().startswith('=== MAIL'):\n            continue\n        lines = block.strip().splitlines()\n        headers = {}\n        body_lines = []\n        in_body = False\n        for line in lines[1:]:  # saute la ligne \"=== MAIL N ===\"\n            if line.strip() == '---':\n                in_body = True\n                continue\n            if in_body:\n                body_lines.append(line)\n            else:\n                m = re.match(r'^(A|Sujet|Message-ID|ENVOYER):\\s*(.*)', line)\n                if m:\n                    headers[m.group(1)] = m.group(2).strip()\n        if headers.get('ENVOYER', 'non').lower() == 'oui':\n            validated.append({\n                'to': headers.get('A', ''),\n                'subject': headers.get('Sujet', ''),\n                'message_id': headers.get('Message-ID', ''),\n                'body': '\\n'.join(body_lines).strip(),\n            })\n    print(f\"[INFO] {len(validated)} reponse(s) a envoyer (ENVOYER: oui).\")\n    return validated\n",
+        "detected_inputs": [],
+        "detected_outputs": [
+          "output"
+        ],
+        "detected_config": {
+          "OUTPUT_DIR": {
+            "label": "Output Dir",
+            "default": "email_drafts",
+            "value": "email_drafts"
+          }
+        }
+      },
+      "input_ports": [],
+      "output_ports": [
+        {
+          "id": "ger-scr-0001-0000-0000-0000-000000000002",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "ger-scr-0002-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Envoyer Mails SMTP",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(responses):\n    import smtplib, os\n    from email.mime.text import MIMEText\n    from email.mime.multipart import MIMEMultipart\n    OUTPUT_DIR = 'email_drafts'\n    if not responses:\n        print(\"[INFO] Aucune reponse a envoyer.\")\n        return {'sent': [], 'failed': []}\n    user = os.getenv('GMAIL_USER', '')\n    pwd = os.getenv('GMAIL_APP_PASSWORD', '')\n    if not user or not pwd:\n        print(\"[ERREUR] Ajouter GMAIL_USER et GMAIL_APP_PASSWORD dans .env\")\n        return {'sent': [], 'failed': []}\n    sent = []\n    failed = []\n    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:\n        smtp.login(user, pwd)\n        for draft in responses:\n            try:\n                msg = MIMEMultipart()\n                msg['From'] = user\n                msg['To'] = draft['to']\n                msg['Subject'] = draft['subject']\n                if draft.get('message_id'):\n                    msg['In-Reply-To'] = draft['message_id']\n                    msg['References'] = draft['message_id']\n                msg.attach(MIMEText(draft['body'], 'plain', 'utf-8'))\n                smtp.send_message(msg)\n                sent.append(draft['to'])\n                print(f\"[OK] Envoye a {draft['to']}: {draft['subject']}\")\n            except Exception as e:\n                failed.append({'to': draft['to'], 'error': str(e)})\n                print(f\"[ERREUR] {draft['to']}: {e}\")\n    print(f\"[RESUME] {len(sent)} envoye(s), {len(failed)} echec(s).\")\n    txt_path = f\"{OUTPUT_DIR}/reponses.txt\"\n    if not failed and os.path.exists(txt_path):\n        os.remove(txt_path)\n        print(f\"[OK] {txt_path} supprime.\")\n    elif failed:\n        print(f\"[INFO] {txt_path} conserve ({len(failed)} echec(s)).\")\n    return {'sent': sent, 'failed': failed}\n",
+        "detected_inputs": [
+          "responses"
+        ],
+        "detected_outputs": [
+          "output"
+        ],
+        "detected_config": {}
+      },
+      "input_ports": [
+        {
+          "id": "ger-scr-0002-0000-0000-0000-000000000002",
+          "name": "responses",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "ger-scr-0002-0000-0000-0000-000000000003",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ger-conn-0001-0000-0000-0000-000000000001",
+      "source_block_id": "ger-scr-0001-0000-0000-0000-000000000001",
+      "source_port_id": "ger-scr-0001-0000-0000-0000-000000000002",
+      "target_block_id": "ger-scr-0002-0000-0000-0000-000000000001",
+      "target_port_id": "ger-scr-0002-0000-0000-0000-000000000002"
+    }
+  ]
+}

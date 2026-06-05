@@ -1,0 +1,121 @@
+{
+  "id": "glr-wf01-0000-0000-0000-000000000001",
+  "name": "gmail_lire_et_repondre",
+  "blocks": [
+    {
+      "id": "glr-llm-0001-0000-0000-0000-000000000001",
+      "type": "LLMBlock",
+      "name": "Claude Haiku",
+      "config": {
+        "api_url": "GENAI_API_URL",
+        "model_name": "GENAI_MODEL",
+        "temperature": 0.5,
+        "api_key_env_var": "GENAI_API_KEY"
+      },
+      "input_ports": [],
+      "output_ports": [
+        {
+          "id": "glr-llm-0001-0000-0000-0000-000000000002",
+          "name": "llm_output",
+          "direction": "output",
+          "data_type": "llm",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "glr-scr-0002-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Lire 5 Derniers Mails",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run():\n    import imaplib, email, os, re\n    from email.header import decode_header\n    NB_MAILS = 5\n    user = os.getenv('GMAIL_USER', '')\n    pwd = os.getenv('GMAIL_APP_PASSWORD', '')\n    if not user or not pwd:\n        return [{'message_id': 'demo-1', 'from': 'demo@example.com',\n                 'subject': 'Credentials manquants', 'date': '',\n                 'body': 'Ajouter GMAIL_USER et GMAIL_APP_PASSWORD dans .env'}]\n    mail = imaplib.IMAP4_SSL('imap.gmail.com')\n    mail.login(user, pwd)\n    mail.select('INBOX')\n    _, ids_data = mail.search(None, 'UNSEEN')\n    ids = ids_data[0].split()[-NB_MAILS:]\n    if not ids:\n        print(\"[INFO] Aucun mail non lu.\")\n        return []\n    results = []\n    for mid in ids:\n        _, data = mail.fetch(mid, '(RFC822)')\n        msg = email.message_from_bytes(data[0][1])\n        raw_subj = decode_header(msg['Subject'] or '(sans sujet)')[0]\n        subject = raw_subj[0].decode(raw_subj[1] or 'utf-8') if isinstance(raw_subj[0], bytes) else str(raw_subj[0])\n        sender = msg['From'] or ''\n        date = msg['Date'] or ''\n        message_id = msg['Message-ID'] or str(mid)\n        body = ''\n        if msg.is_multipart():\n            for part in msg.walk():\n                if part.get_content_type() == 'text/plain':\n                    body = part.get_payload(decode=True).decode('utf-8', errors='ignore')[:800]\n                    break\n        else:\n            payload = msg.get_payload(decode=True)\n            body = payload.decode('utf-8', errors='ignore')[:800] if payload else ''\n        body = re.sub(r'\\[image:[^\\]]*\\]', '', body).strip()\n        results.append({'message_id': message_id, 'from': sender,\n                        'subject': subject, 'date': date, 'body': body})\n    mail.logout()\n    return results\n",
+        "detected_inputs": [],
+        "detected_outputs": [
+          "output"
+        ],
+        "detected_config": {
+          "NB_MAILS": {
+            "label": "Nb Mails",
+            "default": 5,
+            "value": 5
+          }
+        }
+      },
+      "input_ports": [],
+      "output_ports": [
+        {
+          "id": "glr-scr-0002-0000-0000-0000-000000000002",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "glr-scr-0003-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Generer Reponses",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(llm, emails):\n    import os\n    from pathlib import Path\n    OUTPUT_DIR = 'email_drafts'\n    if not emails:\n        print(\"[INFO] Aucun mail recu.\")\n        return \"\"\n    Path(OUTPUT_DIR).mkdir(exist_ok=True)\n    out_path = f\"{OUTPUT_DIR}/reponses.txt\"\n    lines = []\n    lines.append(\"# Reponses generees par Agent Builder\")\n    lines.append(\"# Changez ENVOYER: non -> ENVOYER: oui pour valider une reponse\")\n    lines.append(\"# Puis lancez le workflow gmail_envoyer_reponses\")\n    lines.append(\"\")\n    for i, mail in enumerate(emails, 1):\n        prompt = (\n            \"Tu es un assistant professionnel. Redige une reponse concise et \"\n            \"appropriee a cet email.\\n\\n\"\n            f\"De: {mail.get('from', '?')}\\n\"\n            f\"Sujet: {mail.get('subject', '?')}\\n\"\n            f\"Date: {mail.get('date', '?')}\\n\"\n            f\"Corps:\\n{mail.get('body', '')[:600]}\\n\\n\"\n            \"Redige uniquement le corps de la reponse, en francais, \"\n            \"sans objet ni signature.\"\n        )\n        response = llm.invoke(prompt)\n        content = response.content if hasattr(response, 'content') else str(response)\n        lines.append(f\"=== MAIL {i} ===\")\n        lines.append(f\"A: {mail.get('from', '')}\")\n        lines.append(f\"Sujet: Re: {mail.get('subject', '')}\")\n        lines.append(f\"Message-ID: {mail.get('message_id', '')}\")\n        lines.append(\"ENVOYER: non\")\n        lines.append(\"---\")\n        lines.append(content.strip())\n        lines.append(\"\")\n    with open(out_path, 'w', encoding='utf-8') as f:\n        f.write(\"\\n\".join(lines))\n    print(f\"[OK] {len(emails)} reponse(s) -> {out_path}\")\n    print(\"Editez le fichier, passez ENVOYER: non -> ENVOYER: oui,\")\n    print(\"puis lancez gmail_envoyer_reponses.\")\n    return out_path\n",
+        "detected_inputs": [
+          "llm",
+          "emails"
+        ],
+        "detected_outputs": [
+          "output"
+        ],
+        "detected_config": {
+          "OUTPUT_DIR": {
+            "label": "Output Dir",
+            "default": "email_drafts",
+            "value": "email_drafts"
+          }
+        }
+      },
+      "input_ports": [
+        {
+          "id": "glr-scr-0003-0000-0000-0000-000000000002",
+          "name": "llm",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        },
+        {
+          "id": "glr-scr-0003-0000-0000-0000-000000000003",
+          "name": "emails",
+          "direction": "input",
+          "data_type": "any",
+          "required": true
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "glr-scr-0003-0000-0000-0000-000000000004",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "glr-conn-0001-0000-0000-0000-000000000001",
+      "source_block_id": "glr-llm-0001-0000-0000-0000-000000000001",
+      "source_port_id": "glr-llm-0001-0000-0000-0000-000000000002",
+      "target_block_id": "glr-scr-0003-0000-0000-0000-000000000001",
+      "target_port_id": "glr-scr-0003-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "glr-conn-0002-0000-0000-0000-000000000002",
+      "source_block_id": "glr-scr-0002-0000-0000-0000-000000000001",
+      "source_port_id": "glr-scr-0002-0000-0000-0000-000000000002",
+      "target_block_id": "glr-scr-0003-0000-0000-0000-000000000001",
+      "target_port_id": "glr-scr-0003-0000-0000-0000-000000000003"
+    }
+  ]
+}
