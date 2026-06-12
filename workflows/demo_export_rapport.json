@@ -1,0 +1,124 @@
+{
+  "id": "demo-export-0001-0002-0003-rapport00001",
+  "name": "demo_export_rapport",
+  "blocks": [
+    {
+      "id": "demo-llm-0001-0000-0000-0000-000000000001",
+      "type": "LLMBlock",
+      "name": "Claude Haiku",
+      "config": {
+        "api_url": "GENAI_API_URL",
+        "model_name": "GENAI_MODEL",
+        "temperature": 0.7,
+        "api_key_env_var": "GENAI_API_KEY"
+      },
+      "input_ports": [],
+      "output_ports": [
+        {
+          "id": "demo-llm-0001-0000-0000-0000-000000000002",
+          "name": "llm_output",
+          "direction": "output",
+          "data_type": "llm",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "demo-agt-0002-0000-0000-0000-000000000001",
+      "type": "AgentBlock",
+      "name": "Agent Explicateur",
+      "config": {
+        "system_prompt": "Tu es un expert en intelligence artificielle. Reponds en francais de maniere claire et structuree.",
+        "user_prompt": "Explique en 3 points ce qu'est un agent LangChain et en quoi il differe d'un simple appel LLM.",
+        "llm_block_id": "demo-llm-0001-0000-0000-0000-000000000001",
+        "tool_block_ids": [],
+        "memory_block_id": ""
+      },
+      "input_ports": [
+        {
+          "id": "demo-agt-0002-0000-0000-0000-000000000002",
+          "name": "llm_input",
+          "direction": "input",
+          "data_type": "llm",
+          "required": true
+        },
+        {
+          "id": "demo-agt-0002-0000-0000-0000-000000000003",
+          "name": "tool_input",
+          "direction": "input",
+          "data_type": "tool",
+          "required": false
+        },
+        {
+          "id": "demo-agt-0002-0000-0000-0000-000000000004",
+          "name": "memory_input",
+          "direction": "input",
+          "data_type": "memory",
+          "required": false,
+          "position": "bottom"
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "demo-agt-0002-0000-0000-0000-000000000005",
+          "name": "agent_output",
+          "direction": "output",
+          "data_type": "str",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "demo-py-0003-0000-0000-0000-000000000001",
+      "type": "PythonScriptBlock",
+      "name": "Sauvegarder Résultat",
+      "config": {
+        "function_name": "run",
+        "script_code": "def run(agent_output):\n    OUTPUT_FILE = \"resultat.txt\"\n    with open(OUTPUT_FILE, \"w\", encoding=\"utf-8\") as f:\n        f.write(agent_output)\n    print(f\"Resultat sauvegarde dans {OUTPUT_FILE}\")\n    return OUTPUT_FILE\n",
+        "detected_inputs": ["agent_output"],
+        "detected_outputs": ["output"],
+        "detected_config": {
+          "OUTPUT_FILE": {
+            "label": "Output File",
+            "default": "resultat.txt",
+            "value": "resultat.txt"
+          }
+        }
+      },
+      "input_ports": [
+        {
+          "id": "demo-py-0003-0000-0000-0000-000000000002",
+          "name": "agent_output",
+          "direction": "input",
+          "data_type": "any",
+          "required": false
+        }
+      ],
+      "output_ports": [
+        {
+          "id": "demo-py-0003-0000-0000-0000-000000000003",
+          "name": "output",
+          "direction": "output",
+          "data_type": "any",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "demo-conn-0001",
+      "source_block_id": "demo-llm-0001-0000-0000-0000-000000000001",
+      "source_port_id": "demo-llm-0001-0000-0000-0000-000000000002",
+      "target_block_id": "demo-agt-0002-0000-0000-0000-000000000001",
+      "target_port_id": "demo-agt-0002-0000-0000-0000-000000000002"
+    },
+    {
+      "id": "demo-conn-0002",
+      "source_block_id": "demo-agt-0002-0000-0000-0000-000000000001",
+      "source_port_id": "demo-agt-0002-0000-0000-0000-000000000005",
+      "target_block_id": "demo-py-0003-0000-0000-0000-000000000001",
+      "target_port_id": "demo-py-0003-0000-0000-0000-000000000002"
+    }
+  ]
+}

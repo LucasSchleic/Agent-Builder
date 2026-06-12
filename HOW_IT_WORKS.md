@@ -80,7 +80,7 @@ views.add_block(request)
 | `LLMBlock` | none | `llm_output` (`llm`) | `api_url`, `model_name`, `temperature`, `api_key_env_var` |
 | `AgentBlock` | `llm_input` (`llm`), `tool_input` (`tool`), `memory_input` (`memory`, bottom) | `agent_output` (`str`) | `system_prompt`, `user_prompt`, `llm_block_id`, `tool_block_ids`, `memory_block_id` |
 | `HTTPBlock` | `http_input` (`any`) | `http_output` (`dict`) | `method`, `url`, `headers`, `body` |
-| `PythonScriptBlock` | derived from function params | `output` (`any`) | `script_code`, `function_name`, `detected_inputs`, `detected_config` |
+| `PythonScriptBlock` | derived from function params | `output` (`any`) | `script_code`, `function_name`, `detected_inputs`, `detected_outputs`, `detected_config` |
 | `BufferMemoryBlock` | none | `memory_output` (`memory`) | none |
 
 ### Port.position
@@ -88,6 +88,22 @@ views.add_block(request)
 `Port` has an optional `position` attribute (default `None`).
 When `position="bottom"`, the port is rendered on the bottom edge of the block card instead of the sides.
 Currently used by `AgentBlock.memory_input` so the `BufferMemoryBlock` connection enters from below.
+
+### Remove block
+
+```text
+POST /api/workflow/block/remove/
+Body: { "workflow": {...}, "block_id": "..." }
+
+views.remove_block(request)
+  └─ wf.remove_block(block_id)
+       └─ self.blocks = [b for b in self.blocks if b.id != block_id]
+       └─ self.connections = [c for c in self.connections
+                               if c.source_block_id != block_id
+                               and c.target_block_id != block_id]
+       └─ self.notify_subscribers()
+  └─ JsonResponse({"workflow": wf.to_dict()})
+```
 
 ---
 
@@ -226,12 +242,12 @@ PythonScriptBlock without editing the script code directly.
 
 ## 5. Execution
 
-### Trigger
+### Execution trigger
 
 User clicks **Run** in the Toolbar.
 The frontend uses the streaming endpoint — results appear in the bottom console in real time.
 
-### Frontend → Backend call
+### Execution request
 
 ```text
 POST /api/workflow/run/stream/
@@ -239,7 +255,7 @@ Body: { "workflow": {...} }
 Response: text/event-stream (SSE)
 ```
 
-### Backend call chain
+### Execution call chain
 
 ```text
 views.run_workflow_stream(request)
@@ -378,19 +394,19 @@ context = {
 
 ## 6. Export
 
-### Trigger
+### Export trigger
 
 User clicks **Export** in the Toolbar.
 A modal appears with a checkbox: **"Inclure les clés API"**.
 
-### Frontend → Backend call
+### Export request
 
 ```text
 POST /api/workflow/export/
 Body: { "workflow": {...}, "resolve_secrets": true|false }
 ```
 
-### Backend call chain
+### Export call chain
 
 ```text
 views.export_workflow(request)

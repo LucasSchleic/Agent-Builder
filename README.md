@@ -68,6 +68,8 @@ Click **Généraliser** on any Python Script block to save it as a reusable temp
 | --- | --- |
 | `simple_agent.json` | Minimal LLM → Agent pipeline |
 | `memory_agent_demo.json` | Agent with conversation memory |
+| `config_fields_demo.json` | Shows ALL_CAPS configurable constants in a PythonScriptBlock |
+| `demo_export_rapport.json` | 3-block export example (LLM → Agent → save to file) |
 | `gmail_lire_et_repondre.json` | Reads 5 unread Gmail messages, generates draft replies |
 | `gmail_envoyer_reponses.json` | Sends validated replies from a `.txt` file via SMTP |
 | `github_activity_analyser.json` | Fetches GitHub commits via HTTP, analyses them with an agent |
